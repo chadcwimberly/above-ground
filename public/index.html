@@ -107,28 +107,11 @@ h2{font-size:1.1rem;font-weight:500;margin:1rem 0 .5rem;color:var(--mute)}
 
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/dist/umd/supabase.min.js"></script>
 <script>
-// ---- Config: paste your Supabase project URL and anon (public) key. Leave blank to run offline with placeholder content.
+// ---- Config: Supabase project URL and anon (public) key.
+// Supabase is the only source of content (exercises, affirmations, completion messages, greetings).
+// The app keeps a copy of the last content it loaded so it still works offline; it never ships its own.
 const CFG = { url: 'https://ahamlyfqmwfpggntigjy.supabase.co', key: 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImFoYW1seWZxbXdmcGdnbnRpZ2p5Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3OTMyODQxODYsImV4cCI6MjEwODg2MDE4Nn0.IdcPXm_zto2EDPAWUcsqmoIjTOrIRCsXZ9Oaw4-3tiA' };
-
-// ---- Placeholder content (used until Supabase content loads). Mirrors the SQL seed.
-const FALLBACK = {
-  exercises: [
-    { id: 'x1', title: 'Notice five things around you', kind: 'steps', body: { intro: 'Slowly name what is here with you right now.', steps: ['Name 5 things you can see.', 'Name 4 things you can feel.', 'Name 3 things you can hear.', 'Name 2 things you can smell.', 'Name 1 thing you can taste.'] } },
-    { id: 'x2', title: 'Favorite foods', kind: 'list_input', body: { intro: 'Bring to mind a few of the foods you love most.', count: 5, label: 'Favorite food', placeholder: 'A food you love' } },
-    { id: 'x3', title: 'Box breathing', kind: 'timer', body: { intro: 'Breathe in a steady square.', steps: ['Breathe in for 4.', 'Hold for 4.', 'Breathe out for 4.', 'Hold for 4.'], seconds: 60 } },
-    { id: 'x4', title: 'Hear your favorite song', kind: 'steps', body: { intro: 'Play a song you love inside your head.', steps: ['Choose a song you know well.', 'Hear the opening in your mind.', 'Follow the melody as far as you can.', 'Notice how your body feels.'] } }
-  ],
-  affirmations: [
-    { id: 'a1', body_html: '<p>I am <em>safe</em> in this moment.</p>' },
-    { id: 'a2', body_html: '<p>This feeling will pass, and I can <strong>breathe</strong> through it.</p>' },
-    { id: 'a3', body_html: '<p>I have handled hard moments before. I can handle this one.</p>' }
-  ],
-  messages: [
-    { id: 'm1', body: 'You did something kind for yourself. Go gently back to your day.' },
-    { id: 'm2', body: 'Thank you for taking this time. Be well.' },
-    { id: 'm3', body: 'Steady and calm. Carry that with you as you go back to your day.' }
-  ]
-};
+const CACHE_KEY = 'content-v2';
 
 // ---- Helpers
 const $ = s => document.querySelector(s);
@@ -161,42 +144,24 @@ const BLOB = `<div class="blob" aria-hidden="true"><div class="float"><div class
     <path class="core" d="${wobblyCircle(88, [[7, .026], [11, .018], [17, .01]], 0.4)}"/>
   </svg></div></div></div>`;
 
-// ---- Welcome greetings. Picked by time of day, weekday/weekend, first visit vs returning,
-// returning again the same day; context-specific lines are favored and the last one shown is never repeated.
-const GREETINGS = [
-  ['Hi there. How can I help?', ['any']],
-  ['Welcome. Take a breath — what do you need?', ['any']],
-  ["You're in the right place. Where shall we start?", ['any']],
-  ['No rush here. What would help right now?', ['any']],
-  ["Let's take a moment together. What's going on?", ['any']],
-  ['Good morning. How can I help?', ['earlyMorning', 'morning']],
-  ["Easing into the day? I'm here.", ['earlyMorning']],
-  ['Good afternoon. What would help right now?', ['afternoon']],
-  ['A quiet pause in the afternoon. What do you need?', ['afternoon']],
-  ['Good evening. How are you holding up?', ['evening']],
-  ["Winding down? Let's make some space.", ['evening']],
-  ["Still up? I'm here with you.", ['lateNight']],
-  ["It's late — let's keep this gentle.", ['lateNight']],
-  ['A slower weekend moment. How can I help?', ['weekend']],
-  ['Welcome. This is a calm, low-pressure space.', ['firstVisit']],
-  ["Glad you're here. Let's find something that helps.", ['firstVisit']],
-  ['Welcome back. What do you need today?', ['returning']],
-  ['Good to see you again. Where shall we begin?', ['returning']],
-  ["Back again — that's a good thing. How can I help?", ['returnedToday']],
-  ["Welcome back. Let's take another moment.", ['returnedToday']]
-];
+// ---- Welcome greetings (rows in the Supabase `greetings` table). Each row's `contexts` says when it fits:
+// time of day, weekend, first visit / returning / returned the same day. Context-specific greetings are
+// favored by these weights, and the last greeting shown is never repeated.
 const GW = { any: 1, earlyMorning: 3, morning: 3, afternoon: 3, evening: 3, lateNight: 5, weekend: 2, firstVisit: 6, returning: 2, returnedToday: 4 };
 function pickGreeting(now = new Date()) {
   const h = now.getHours(), day = now.getDay(), last = store.get('lastVisit', 0);
   const tags = new Set(['any', h >= 5 && h < 9 ? 'earlyMorning' : h < 12 && h >= 9 ? 'morning' : h >= 12 && h < 17 ? 'afternoon' : h >= 17 && h < 22 ? 'evening' : 'lateNight']);
   if (day === 0 || day === 6) tags.add('weekend');
   tags.add(!last ? 'firstVisit' : new Date(last).toDateString() === now.toDateString() ? 'returnedToday' : 'returning');
+  store.set('lastVisit', now.getTime());
   const prev = store.get('lastGreeting', '');
-  let pool = GREETINGS.filter(g => g[1].some(t => tags.has(t))).map(g => [g[0], Math.max(...g[1].filter(t => tags.has(t)).map(t => GW[t]))]);
+  let pool = (data?.greetings || []).filter(g => (g.contexts || []).some(t => tags.has(t)))
+    .map(g => [g.body, Math.max(...g.contexts.filter(t => tags.has(t)).map(t => GW[t] ?? 1))]);
+  if (!pool.length) return '';
   if (pool.length > 1) pool = pool.filter(p => p[0] !== prev);
   let r = Math.random() * pool.reduce((s, p) => s + p[1], 0);
   const text = (pool.find(p => (r -= p[1]) < 0) || pool[0])[0];
-  store.set('lastGreeting', text); store.set('lastVisit', now.getTime());
+  store.set('lastGreeting', text);
   return text;
 }
 const NEEDS = [['anxiety', "I'm feeling anxious"], ['depression', "I'm feeling depressed"], ['grounding', 'I need some grounding']];
@@ -205,7 +170,7 @@ const NEEDS = [['anxiety', "I'm feeling anxious"], ['depression', "I'm feeling d
 const KEY = { exercise: 'ex', affirmation: 'af', message: 'msg' };
 const COLL = { exercise: 'exercises', affirmation: 'affirmations', message: 'messages' };
 const S = { screen: 'welcome', cat: null, greeting: '', ex: null, af: null, msg: null, votes: {} };
-let data = store.get('content', FALLBACK), sb = null, deviceId = null, tick, ready = Promise.resolve();
+let data = store.get(CACHE_KEY, null), sb = null, deviceId = null, tick, ready = Promise.resolve();
 const sessionId = crypto.randomUUID();
 const cur = () => S[KEY[S.screen]];
 
@@ -230,8 +195,15 @@ function render() {
   const k = S.screen, it = cur(), main = $('#main'), foot = $('#foot');
   $('#back').style.visibility = k === 'affirmation' || k === 'exercise' ? 'visible' : 'hidden';
   main.className = k === 'exercise' ? '' : k === 'affirmation' ? 'center has-blob' : 'center';
+  if (k === 'welcome' && !data) {
+    // No content yet: first launch with no connection. Nothing is shipped in the app, so ask to try again.
+    main.innerHTML = `<div class="screen welcome"><p class="msg">I can't reach the exercises right now.</p>
+      <p class="lead">Check your connection, then try again.</p><button class="soft" data-a="retry">Try again</button></div>`;
+    foot.innerHTML = '';
+    return;
+  }
   if (k === 'welcome') {
-    main.innerHTML = `<div class="screen welcome"><h1>${esc(S.greeting)}</h1><div class="needs">${NEEDS.map(n =>
+    main.innerHTML = `<div class="screen welcome">${S.greeting ? `<h1>${esc(S.greeting)}</h1>` : ''}<div class="needs">${NEEDS.map(n =>
       `<button class="need" data-a="need" data-c="${n[0]}">${esc(n[1])}</button>`).join('')}</div></div>`;
     foot.innerHTML = '';
     main.scrollTop = 0;
@@ -296,6 +268,7 @@ document.addEventListener('click', e => {
   if (a === 'settings') return openSettings();
   if (a === 'timer') return startTimer(b);
   if (busy) return;
+  if (a === 'retry') { b.disabled = true; b.textContent = 'Trying…'; if (sb) loadWithWait().then(() => go('welcome')); else location.reload(); return }
   if (a === 'need') { S.cat = b.dataset.c; S.ex = S.af = null; go('exercise', true) }
   if (a === 'up' || a === 'down') return vote(k, it, a === 'up' ? 1 : -1);
   if (a === 'refresh') { log('refresh', it, k); go(k, true) }
@@ -335,7 +308,7 @@ $('#settings').addEventListener('click', e => {
 
 // ---- Analytics: events are queued locally and sent to Supabase when online.
 function log(type, item, kind, meta = {}) {
-  if (!deviceId || !item || !UUID.test(item.id)) return; // placeholder content has no uuid, so nothing is logged
+  if (!deviceId || !item || !UUID.test(item.id)) return; // only real Supabase rows (uuid ids) are logged
   const q = store.get('q', []);
   q.push({ device_id: deviceId, session_id: sessionId, content_type: kind, content_id: item.id, event_type: type, meta, created_at: new Date().toISOString() });
   store.set('q', q); flush();
@@ -356,14 +329,24 @@ addEventListener('online', flush);
 // ---- Startup
 async function loadContent() {
   // Content is public, so it loads whether or not the device has signed in.
-  const [x, a, m] = await Promise.all([
+  const [x, a, m, g] = await Promise.all([
     sb.from('exercises').select('id,title,kind,body,category').eq('is_active', true),
     sb.from('affirmations').select('id,body_html,category').eq('is_active', true),
-    sb.from('completion_messages').select('id,body').eq('is_active', true)
+    sb.from('completion_messages').select('id,body').eq('is_active', true),
+    sb.from('greetings').select('id,body,contexts').eq('is_active', true)
   ]);
-  const err = x.error || a.error || m.error;
+  const err = x.error || a.error || m.error || g.error;
   if (err) throw err;
-  if (x.data?.length && a.data?.length && m.data?.length) { data = { exercises: x.data, affirmations: a.data, messages: m.data }; store.set('content', data) }
+  if (x.data?.length && a.data?.length && m.data?.length) {
+    data = { exercises: x.data, affirmations: a.data, messages: m.data, greetings: g.data || [] };
+    store.set(CACHE_KEY, data);
+    try { localStorage.removeItem('content') } catch {} // copy saved by the previous app version
+  }
+}
+// First launch waits longer (there is nothing saved to show); later launches show saved content after 4 seconds.
+async function loadWithWait() {
+  const wait = data ? 4000 : 15000;
+  await Promise.race([loadContent().catch(e => console.warn('Content load failed, using saved content', e)), timeout(wait)]);
 }
 async function registerDevice() {
   let { data: { session } } = await sb.auth.getSession();
@@ -383,8 +366,7 @@ async function init() {
   applyPrefs();
   if (CFG.url && window.supabase) {
     sb = supabase.createClient(CFG.url, CFG.key);
-    // Wait up to 4 seconds for content so a slow network never leaves the screen blank.
-    await Promise.race([loadContent().catch(e => console.warn('Content load failed, using saved content', e)), new Promise(r => setTimeout(r, 4000))]);
+    await loadWithWait();
     ready = registerDevice().catch(e => console.warn('Device sign-in failed, events will not be recorded', e));
   }
   go('welcome');

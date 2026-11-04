@@ -1,4 +1,4 @@
-const C = 'ground-v2';
+const C = 'ground-v3';
 const SHELL = ['./', 'index.html', 'manifest.webmanifest', 'icon.svg'];
 
 self.addEventListener('install', e => {
