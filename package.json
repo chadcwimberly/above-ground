@@ -1,0 +1,13 @@
+{
+  "name": "above-ground",
+  "version": "1.1.0",
+  "private": true,
+  "description": "A calm PWA with research-based exercises for anxiety, depression and grounding.",
+  "type": "module",
+  "scripts": {
+    "build": "node scripts/stamp-version.mjs"
+  },
+  "engines": {
+    "node": ">=18"
+  }
+}

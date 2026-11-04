@@ -170,7 +170,8 @@ const NEEDS = [['anxiety', "I'm feeling anxious"], ['depression', "I'm feeling d
 const KEY = { exercise: 'ex', affirmation: 'af', message: 'msg' };
 const COLL = { exercise: 'exercises', affirmation: 'affirmations', message: 'messages' };
 const S = { screen: 'welcome', cat: null, greeting: '', ex: null, af: null, msg: null, votes: {} };
-let data = store.get(CACHE_KEY, null), sb = null, deviceId = null, tick, ready = Promise.resolve();
+let data = store.get(CACHE_KEY, null), sb = null, deviceId = null, deviceName = null, tick, ready = Promise.resolve();
+let version = store.get('version', null);
 const sessionId = crypto.randomUUID();
 const cur = () => S[KEY[S.screen]];
 
@@ -294,8 +295,15 @@ function buildSettings() {
     `<button class="opt" data-p="${p[0]}" aria-pressed="${prefs.palette === p[0]}"><span class="sw" style="background:linear-gradient(135deg,${p[2]} 50%,${p[3]} 50%)"></span>${p[1]}</button>`).join('')}</div>
     <h2>Font</h2><div class="opts">${F.map(f =>
     `<button class="opt" data-f="${f[0]}" aria-pressed="${prefs.font === f[0]}" style="font-family:'${f[1]}',sans-serif">${f[1]}</button>`).join('')}</div>
-    <p class="small">Device ${deviceId ? deviceId.slice(0, 8) : 'offline mode'}</p>
+    <p class="small">Device: ${deviceId ? (deviceName ? `${esc(deviceName)} (${deviceId.slice(0, 8)})` : deviceId.slice(0, 8)) : 'offline mode'}<br>
+    Last Updated: ${version ? `${esc(fmtRelease(version.releasedAt))} (${esc(version.version)})` : 'unknown'}</p>
     <button class="soft" data-close>Close</button>`;
+}
+// "12:48pm Nov 4, 2026", in the viewer's own time zone
+function fmtRelease(iso) {
+  const d = new Date(iso); if (isNaN(d)) return 'unknown';
+  const t = d.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' }).replace(/\s?(AM|PM)$/i, (_, m) => m.toLowerCase());
+  return `${t} ${d.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}`;
 }
 function openSettings() { buildSettings(); $('#settings').showModal() }
 $('#settings').addEventListener('click', e => {
@@ -358,16 +366,33 @@ async function registerDevice() {
   deviceId = session.user.id;
   const up = await sb.from('devices').upsert({ id: deviceId }, { ignoreDuplicates: true });
   if (up.error) throw up.error;
+  // The database assigns each device a permanent name ("Kind Cookie Pony") on first sign-in.
+  const me = await sb.from('devices').select('name').eq('id', deviceId).maybeSingle();
+  if (me.data?.name) { deviceName = me.data.name; store.set('deviceName', { id: deviceId, name: deviceName }) }
   sb.from('devices').update({ last_seen_at: new Date().toISOString() }).eq('id', deviceId).then(() => {});
   flush();
+}
+// version.json is written at deploy time by scripts/stamp-version.mjs: { version, releasedAt, commit }
+async function loadVersion() {
+  try {
+    const r = await fetch('version.json', { cache: 'no-store' });
+    if (r.ok) { version = await r.json(); store.set('version', version) }
+  } catch {}
 }
 async function init() {
   $('#back').innerHTML = svg('back'); $('#gear').innerHTML = svg('gear');
   applyPrefs();
+  loadVersion();
   if (CFG.url && window.supabase) {
     sb = supabase.createClient(CFG.url, CFG.key);
     await loadWithWait();
     ready = registerDevice().catch(e => console.warn('Device sign-in failed, events will not be recorded', e));
+    // Offline: show the name saved for this device last time.
+    sb.auth.getSession().then(({ data: { session } }) => {
+      const saved = store.get('deviceName', null);
+      if (session && !deviceId) deviceId = session.user.id;
+      if (!deviceName && saved && saved.id === session?.user.id) deviceName = saved.name;
+    }).catch(() => {});
   }
   go('welcome');
 }

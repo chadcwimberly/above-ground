@@ -1,9 +1,16 @@
-# Static PWA — no build step. Netlify serves the public/ folder.
+# Static PWA. The build step only stamps public/version.json (version + release time)
+# and gives the service worker a per-release cache name. Netlify serves the public/ folder.
 [build]
+  command = "npm run build"
   publish = "public"
 
-# Always revalidate the service worker so new versions roll out promptly.
+# Always revalidate the service worker and version file so new releases roll out promptly.
 [[headers]]
   for = "/sw.js"
+  [headers.values]
+    Cache-Control = "no-cache"
+
+[[headers]]
+  for = "/version.json"
   [headers.values]
     Cache-Control = "no-cache"
