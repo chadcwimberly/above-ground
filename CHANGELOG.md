@@ -4,6 +4,12 @@ All notable changes to Above Ground. Versions follow [Semantic Versioning](https
 MAJOR for changes that break saved data or flows, MINOR for new features, PATCH for fixes.
 The exact time each version went live is shown in the app under Settings → Last Updated.
 
+## 1.1.1 — 2026-11-04
+- Settings: "Palette" is now "Theme"
+- Theme swatches are true circles with an unclipped ring
+- Lora is the default font and listed first; font names shortened to Alegreya and Source Sans
+- Font buttons have equal left and right padding
+
 ## 1.1.0 — 2026-11-04
 - Welcome screen with greetings chosen by time of day, weekend and visit history
 - Three entry points: anxious, depressed, grounding; exercise and affirmation stay in that category

@@ -1,5 +1,5 @@
 <!doctype html>
-<html lang="en" data-palette="hearth" data-font="alegreya">
+<html lang="en" data-palette="hearth" data-font="lora">
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
@@ -9,14 +9,14 @@
 <title>Ground</title>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Alegreya+Sans:wght@400;500&family=Lora:wght@400;500&family=Source+Sans+3:wght@400;500&display=swap">
 <style>
-/* Palettes: Hearth (default, warm browns), Moss, Tide, Pine (bright), Dusk (dark) */
-:root{--bg:#d8c6b2;--surface:#e5d7c6;--ink:#3a2b21;--mute:#5f4a39;--accent:#6f4a33;--on:#f6ece1;--font:'Alegreya Sans',system-ui,sans-serif}
+/* Themes (saved as "palette"): Hearth (default, warm browns), Moss, Tide, Pine (bright), Dusk (dark) */
+:root{--bg:#d8c6b2;--surface:#e5d7c6;--ink:#3a2b21;--mute:#5f4a39;--accent:#6f4a33;--on:#f6ece1;--font:'Lora',Georgia,serif}
 [data-palette=moss]{--bg:#cfd6c8;--surface:#dde3d6;--ink:#2b3328;--mute:#4f5d4c;--accent:#4f6b50;--on:#f4f7f1}
 [data-palette=tide]{--bg:#cdd8de;--surface:#dbe4e9;--ink:#23323b;--mute:#46596a;--accent:#3f6477;--on:#f2f7fa}
 [data-palette=pine]{--bg:#1f2a27;--surface:#2a3733;--ink:#dfe8e3;--mute:#9bb0a6;--accent:#8fb8a3;--on:#1b2421}
 [data-palette=dusk]{--bg:#2b2830;--surface:#37333d;--ink:#e6e1ea;--mute:#a39cac;--accent:#b9a7c9;--on:#25222b}
 [data-font=source]{--font:'Source Sans 3',system-ui,sans-serif}
-[data-font=lora]{--font:'Lora',Georgia,serif}
+[data-font=alegreya]{--font:'Alegreya Sans',system-ui,sans-serif}
 
 *{box-sizing:border-box}
 html,body{height:100%;margin:0}
@@ -81,10 +81,13 @@ dialog::backdrop{background:rgb(0 0 0/.35)}
 .body{padding:1.5rem 1.5rem calc(1.5rem + env(safe-area-inset-bottom))}
 h2{font-size:1.1rem;font-weight:500;margin:1rem 0 .5rem;color:var(--mute)}
 .opts{display:flex;flex-wrap:wrap;gap:.6rem}
-.opt{display:flex;align-items:center;gap:.55rem;padding:.55rem 1rem .55rem .6rem;border-radius:2rem;background:transparent;
+.opt{--pl:.6rem;display:flex;align-items:center;gap:.55rem;padding:.55rem 1rem .55rem var(--pl);border-radius:2rem;background:transparent;
   border:1px solid color-mix(in srgb,var(--ink) 25%,transparent)}
-.opt[aria-pressed=true]{border:2px solid var(--accent);padding:calc(.55rem - 1px) calc(1rem - 1px) calc(.55rem - 1px) calc(.6rem - 1px)}
-.sw{width:1.5rem;height:1.5rem;border-radius:50%;border:1px solid color-mix(in srgb,var(--ink) 25%,transparent)}
+.opt.text{--pl:1rem} /* no swatch: equal padding left and right */
+.opt[aria-pressed=true]{border:2px solid var(--accent);padding:calc(.55rem - 1px) calc(1rem - 1px) calc(.55rem - 1px) calc(var(--pl) - 1px)}
+/* Swatch: fixed square box so it stays a true circle; the ring is drawn on top of the colors so they can't clip it */
+.sw{flex:none;box-sizing:border-box;width:1.5rem;height:1.5rem;border-radius:50%;
+  box-shadow:inset 0 0 0 1px color-mix(in srgb,var(--ink) 35%,transparent)}
 .small{font-size:.9rem;color:var(--mute);margin:1rem 0 .75rem}
 
 @keyframes fade{from{opacity:0}to{opacity:1}}
@@ -280,10 +283,11 @@ document.addEventListener('click', e => {
   if (a === 'restart') { log('restart', it, 'message'); S.votes = {}; go('welcome') }
 });
 
-// ---- Settings: palette + font
+// ---- Settings: theme (stored as prefs.palette) + font
 const P = [['hearth', 'Hearth', '#d8c6b2', '#6f4a33'], ['moss', 'Moss', '#cfd6c8', '#4f6b50'], ['tide', 'Tide', '#cdd8de', '#3f6477'], ['pine', 'Pine', '#1f2a27', '#8fb8a3'], ['dusk', 'Dusk', '#2b2830', '#b9a7c9']];
-const F = [['alegreya', 'Alegreya Sans'], ['source', 'Source Sans 3'], ['lora', 'Lora']];
-const prefs = store.get('prefs', { palette: 'hearth', font: 'alegreya' });
+// [key, label shown in settings, CSS font family]
+const F = [['lora', 'Lora', 'Lora'], ['alegreya', 'Alegreya', 'Alegreya Sans'], ['source', 'Source Sans', 'Source Sans 3']];
+const prefs = store.get('prefs', { palette: 'hearth', font: 'lora' });
 function applyPrefs() {
   const d = document.documentElement;
   if (!P.some(p => p[0] === prefs.palette)) prefs.palette = 'hearth'; // e.g. a saved palette that no longer exists
@@ -291,10 +295,10 @@ function applyPrefs() {
   $('meta[name=theme-color]').content = getComputedStyle(d).getPropertyValue('--bg').trim();
 }
 function buildSettings() {
-  $('#settings .body').innerHTML = `<h2>Palette</h2><div class="opts">${P.map(p =>
+  $('#settings .body').innerHTML = `<h2>Theme</h2><div class="opts">${P.map(p =>
     `<button class="opt" data-p="${p[0]}" aria-pressed="${prefs.palette === p[0]}"><span class="sw" style="background:linear-gradient(135deg,${p[2]} 50%,${p[3]} 50%)"></span>${p[1]}</button>`).join('')}</div>
     <h2>Font</h2><div class="opts">${F.map(f =>
-    `<button class="opt" data-f="${f[0]}" aria-pressed="${prefs.font === f[0]}" style="font-family:'${f[1]}',sans-serif">${f[1]}</button>`).join('')}</div>
+    `<button class="opt text" data-f="${f[0]}" aria-pressed="${prefs.font === f[0]}" style="font-family:'${f[2]}',sans-serif">${f[1]}</button>`).join('')}</div>
     <p class="small">Device: ${deviceId ? (deviceName ? `${esc(deviceName)} (${deviceId.slice(0, 8)})` : deviceId.slice(0, 8)) : 'offline mode'}<br>
     Last Updated: ${version ? `${esc(fmtRelease(version.releasedAt))} (${esc(version.version)})` : 'unknown'}</p>
     <button class="soft" data-close>Close</button>`;
