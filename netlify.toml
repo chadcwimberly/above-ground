@@ -1,0 +1,9 @@
+# Static PWA — no build step. Netlify serves the public/ folder.
+[build]
+  publish = "public"
+
+# Always revalidate the service worker so new versions roll out promptly.
+[[headers]]
+  for = "/sw.js"
+  [headers.values]
+    Cache-Control = "no-cache"

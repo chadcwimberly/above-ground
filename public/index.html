@@ -1,0 +1,396 @@
+<!doctype html>
+<html lang="en" data-palette="hearth" data-font="alegreya">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="theme-color" content="#d8c6b2">
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="icon" href="icon.svg">
+<title>Ground</title>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Alegreya+Sans:wght@400;500&family=Lora:wght@400;500&family=Source+Sans+3:wght@400;500&display=swap">
+<style>
+/* Palettes: Hearth (default, warm browns), Moss, Tide, Pine (bright), Dusk (dark) */
+:root{--bg:#d8c6b2;--surface:#e5d7c6;--ink:#3a2b21;--mute:#5f4a39;--accent:#6f4a33;--on:#f6ece1;--font:'Alegreya Sans',system-ui,sans-serif}
+[data-palette=moss]{--bg:#cfd6c8;--surface:#dde3d6;--ink:#2b3328;--mute:#4f5d4c;--accent:#4f6b50;--on:#f4f7f1}
+[data-palette=tide]{--bg:#cdd8de;--surface:#dbe4e9;--ink:#23323b;--mute:#46596a;--accent:#3f6477;--on:#f2f7fa}
+[data-palette=pine]{--bg:#1f2a27;--surface:#2a3733;--ink:#dfe8e3;--mute:#9bb0a6;--accent:#8fb8a3;--on:#1b2421}
+[data-palette=dusk]{--bg:#2b2830;--surface:#37333d;--ink:#e6e1ea;--mute:#a39cac;--accent:#b9a7c9;--on:#25222b}
+[data-font=source]{--font:'Source Sans 3',system-ui,sans-serif}
+[data-font=lora]{--font:'Lora',Georgia,serif}
+
+*{box-sizing:border-box}
+html,body{height:100%;margin:0}
+body{background:var(--bg);color:var(--ink);font:400 1.125rem/1.55 var(--font)}
+button,input{font:inherit;color:inherit}
+button{cursor:pointer}
+:focus-visible{outline:3px solid var(--accent);outline-offset:3px}
+
+#app{display:flex;flex-direction:column;height:100dvh;max-width:32rem;margin:0 auto;
+  padding:env(safe-area-inset-top) env(safe-area-inset-right) env(safe-area-inset-bottom) env(safe-area-inset-left)}
+header{position:relative;z-index:1;display:flex;justify-content:space-between;padding:.75rem 1rem}
+.icon,.tool{display:grid;place-items:center;width:2.75rem;height:2.75rem;border:0;border-radius:50%;background:transparent}
+.tool{width:3.25rem;height:3.25rem;background:var(--surface)}
+.tool[aria-pressed=true]{background:var(--accent);color:var(--on)}
+svg{width:1.4rem;height:1.4rem}
+.flip svg{transform:scaleY(-1)}
+
+main{flex:1;overflow:auto;padding:1rem 1.75rem;display:flex;flex-direction:column;isolation:isolate}
+main.center{justify-content:center;text-align:center}
+main.has-blob{overflow:visible}
+.screen{animation:fade .35s ease}
+h1{font-size:1.8rem;font-weight:500;line-height:1.2;margin:0 0 .75rem}
+ol{padding-left:1.3rem;margin:.5rem 0}
+li{margin:.7rem 0;padding-left:.2rem}
+input{width:100%;padding:.8rem 1rem;margin-bottom:.6rem;border-radius:.9rem;background:var(--surface);
+  border:1px solid color-mix(in srgb,var(--ink) 25%,transparent)}
+.aff,.msg{font-size:2rem;line-height:1.3}
+.lead{font-size:1.15rem;color:var(--mute);margin:0 0 1.25rem}
+.aff p{margin:.4rem 0}
+.aff .how{font-size:1.15rem;line-height:1.5;color:var(--mute);margin-top:1rem}
+.msg{font-size:1.75rem;margin:0}
+
+/* Affirmation: text sits on a floating, breathing, hand-drawn circle centered on the screen */
+.screen.said-on-blob{position:relative;--d:max(16rem,min(calc(100vw - 1.5rem),28rem,calc(100dvh - 12rem)))}
+.said{position:relative;z-index:1;max-width:calc(var(--d) * .64);margin:0 auto}
+.said .aff{font-size:clamp(1.5rem,calc(var(--d) * .068),2rem)}
+.said .aff .how{font-size:clamp(1rem,calc(var(--d) * .04),1.15rem)}
+.blob{position:absolute;z-index:0;left:50%;top:50%;width:var(--d);height:var(--d);margin:calc(var(--d) / -2) 0 0 calc(var(--d) / -2);pointer-events:none}
+.blob .float{width:100%;height:100%;animation:float 14s ease-in-out infinite}
+.blob .breathe{width:100%;height:100%;animation:breathe 9s ease-in-out infinite}
+.blob svg{display:block;width:100%;height:100%;overflow:visible}
+.blob path{fill:var(--surface)}
+.blob .halo{opacity:.5;transform-origin:center;animation:spin 70s linear infinite reverse}
+.blob .core{transform-origin:center;animation:spin 90s linear infinite}
+
+/* Welcome: greeting + three "what do you need" choices */
+.welcome h1{font-size:2rem;margin:0 0 2rem}
+.needs{display:flex;flex-direction:column;gap:.9rem;text-align:left}
+.need{width:100%;min-height:4rem;padding:.9rem 1.4rem;border:0;border-radius:1.5rem;background:var(--surface);font-size:1.25rem;font-weight:500}
+.need:active{background:var(--accent);color:var(--on)}
+main[aria-busy=true]{opacity:.6;transition:opacity .2s}
+
+footer{position:relative;z-index:1;padding:.5rem 1.5rem 1.25rem}
+footer:empty{padding:0}
+.tools{display:flex;justify-content:center;gap:.9rem;margin-bottom:1rem}
+.cta{width:100%;min-height:4.25rem;border:0;border-radius:1.5rem;background:var(--accent);color:var(--on);font-size:1.4rem;font-weight:500}
+.soft{margin-top:.75rem;padding:.7rem 1.2rem;border-radius:1rem;background:transparent;border:1px solid var(--accent)}
+footer .soft{display:block;margin:.75rem auto 0}
+
+dialog{margin:auto auto 0;width:100%;max-width:32rem;border:0;border-radius:1.5rem 1.5rem 0 0;padding:0;background:var(--surface);color:var(--ink)}
+dialog::backdrop{background:rgb(0 0 0/.35)}
+.body{padding:1.5rem 1.5rem calc(1.5rem + env(safe-area-inset-bottom))}
+h2{font-size:1.1rem;font-weight:500;margin:1rem 0 .5rem;color:var(--mute)}
+.opts{display:flex;flex-wrap:wrap;gap:.6rem}
+.opt{display:flex;align-items:center;gap:.55rem;padding:.55rem 1rem .55rem .6rem;border-radius:2rem;background:transparent;
+  border:1px solid color-mix(in srgb,var(--ink) 25%,transparent)}
+.opt[aria-pressed=true]{border:2px solid var(--accent);padding:calc(.55rem - 1px) calc(1rem - 1px) calc(.55rem - 1px) calc(.6rem - 1px)}
+.sw{width:1.5rem;height:1.5rem;border-radius:50%;border:1px solid color-mix(in srgb,var(--ink) 25%,transparent)}
+.small{font-size:.9rem;color:var(--mute);margin:1rem 0 .75rem}
+
+@keyframes fade{from{opacity:0}to{opacity:1}}
+@keyframes breathe{50%{transform:scale(1.06)}}
+@keyframes float{25%{transform:translate(.4rem,-.5rem)}50%{transform:translate(-.2rem,-.9rem)}75%{transform:translate(-.5rem,-.2rem)}}
+@keyframes spin{to{transform:rotate(360deg)}}
+@media (prefers-reduced-motion:reduce){*{animation:none!important;transition:none!important}}
+</style>
+</head>
+<body>
+<div id="app">
+  <header>
+    <button class="icon" id="back" data-a="back" aria-label="Back"></button>
+    <button class="icon" id="gear" data-a="settings" aria-label="Settings"></button>
+  </header>
+  <main id="main" aria-live="polite"></main>
+  <footer id="foot"></footer>
+</div>
+<dialog id="settings" aria-label="Settings"><div class="body"></div></dialog>
+
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/dist/umd/supabase.min.js"></script>
+<script>
+// ---- Config: paste your Supabase project URL and anon (public) key. Leave blank to run offline with placeholder content.
+const CFG = { url: 'https://ahamlyfqmwfpggntigjy.supabase.co', key: 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImFoYW1seWZxbXdmcGdnbnRpZ2p5Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3OTMyODQxODYsImV4cCI6MjEwODg2MDE4Nn0.IdcPXm_zto2EDPAWUcsqmoIjTOrIRCsXZ9Oaw4-3tiA' };
+
+// ---- Placeholder content (used until Supabase content loads). Mirrors the SQL seed.
+const FALLBACK = {
+  exercises: [
+    { id: 'x1', title: 'Notice five things around you', kind: 'steps', body: { intro: 'Slowly name what is here with you right now.', steps: ['Name 5 things you can see.', 'Name 4 things you can feel.', 'Name 3 things you can hear.', 'Name 2 things you can smell.', 'Name 1 thing you can taste.'] } },
+    { id: 'x2', title: 'Favorite foods', kind: 'list_input', body: { intro: 'Bring to mind a few of the foods you love most.', count: 5, label: 'Favorite food', placeholder: 'A food you love' } },
+    { id: 'x3', title: 'Box breathing', kind: 'timer', body: { intro: 'Breathe in a steady square.', steps: ['Breathe in for 4.', 'Hold for 4.', 'Breathe out for 4.', 'Hold for 4.'], seconds: 60 } },
+    { id: 'x4', title: 'Hear your favorite song', kind: 'steps', body: { intro: 'Play a song you love inside your head.', steps: ['Choose a song you know well.', 'Hear the opening in your mind.', 'Follow the melody as far as you can.', 'Notice how your body feels.'] } }
+  ],
+  affirmations: [
+    { id: 'a1', body_html: '<p>I am <em>safe</em> in this moment.</p>' },
+    { id: 'a2', body_html: '<p>This feeling will pass, and I can <strong>breathe</strong> through it.</p>' },
+    { id: 'a3', body_html: '<p>I have handled hard moments before. I can handle this one.</p>' }
+  ],
+  messages: [
+    { id: 'm1', body: 'You did something kind for yourself. Go gently back to your day.' },
+    { id: 'm2', body: 'Thank you for taking this time. Be well.' },
+    { id: 'm3', body: 'Steady and calm. Carry that with you as you go back to your day.' }
+  ]
+};
+
+// ---- Helpers
+const $ = s => document.querySelector(s);
+const esc = s => String(s ?? '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+const store = { get: (k, d) => { try { return JSON.parse(localStorage.getItem(k)) ?? d } catch { return d } }, set: (k, v) => { try { localStorage.setItem(k, JSON.stringify(v)) } catch {} } };
+const rnd = (a, notId) => { const p = a.length > 1 ? a.filter(x => x.id !== notId) : a; return p[Math.floor(Math.random() * p.length)] };
+const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+const ICON = {
+  back: '<path d="M15 5l-7 7 7 7"/>',
+  gear: '<path d="M4 7h10M18 7h2M4 17h2M10 17h10"/><circle cx="16" cy="7" r="2"/><circle cx="8" cy="17" r="2"/>',
+  refresh: '<path d="M20 12a8 8 0 1 1-2.3-5.7M20 4v5h-5"/>',
+  up: '<path d="M7 11v9H4v-9zM7 11l4-7c2 0 2.5 1.5 2 3l-.5 3H19a1 1 0 0 1 1 1.2l-1.2 6A2 2 0 0 1 16.8 20H7"/>'
+};
+const svg = n => `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${ICON[n]}</svg>`;
+
+// ---- Hand-drawn circle: a circle whose radius wobbles a little, so the edge looks drawn by hand
+function wobblyCircle(r, wobbles, phase) {
+  const pts = [], n = 160;
+  for (let i = 0; i < n; i++) {
+    const t = (i / n) * Math.PI * 2;
+    let k = 1;
+    for (const [freq, amp] of wobbles) k += amp * Math.sin(freq * t + phase * freq);
+    pts.push([(Math.cos(t) * r * k).toFixed(2), (Math.sin(t) * r * k).toFixed(2)]);
+  }
+  return 'M' + pts.map(p => p.join(' ')).join('L') + 'Z';
+}
+const BLOB = `<div class="blob" aria-hidden="true"><div class="float"><div class="breathe">
+  <svg viewBox="-100 -100 200 200">
+    <path class="halo" d="${wobblyCircle(94, [[5, .022], [9, .018], [14, .011]], 1.7)}"/>
+    <path class="core" d="${wobblyCircle(88, [[7, .026], [11, .018], [17, .01]], 0.4)}"/>
+  </svg></div></div></div>`;
+
+// ---- Welcome greetings. Picked by time of day, weekday/weekend, first visit vs returning,
+// returning again the same day; context-specific lines are favored and the last one shown is never repeated.
+const GREETINGS = [
+  ['Hi there. How can I help?', ['any']],
+  ['Welcome. Take a breath — what do you need?', ['any']],
+  ["You're in the right place. Where shall we start?", ['any']],
+  ['No rush here. What would help right now?', ['any']],
+  ["Let's take a moment together. What's going on?", ['any']],
+  ['Good morning. How can I help?', ['earlyMorning', 'morning']],
+  ["Easing into the day? I'm here.", ['earlyMorning']],
+  ['Good afternoon. What would help right now?', ['afternoon']],
+  ['A quiet pause in the afternoon. What do you need?', ['afternoon']],
+  ['Good evening. How are you holding up?', ['evening']],
+  ["Winding down? Let's make some space.", ['evening']],
+  ["Still up? I'm here with you.", ['lateNight']],
+  ["It's late — let's keep this gentle.", ['lateNight']],
+  ['A slower weekend moment. How can I help?', ['weekend']],
+  ['Welcome. This is a calm, low-pressure space.', ['firstVisit']],
+  ["Glad you're here. Let's find something that helps.", ['firstVisit']],
+  ['Welcome back. What do you need today?', ['returning']],
+  ['Good to see you again. Where shall we begin?', ['returning']],
+  ["Back again — that's a good thing. How can I help?", ['returnedToday']],
+  ["Welcome back. Let's take another moment.", ['returnedToday']]
+];
+const GW = { any: 1, earlyMorning: 3, morning: 3, afternoon: 3, evening: 3, lateNight: 5, weekend: 2, firstVisit: 6, returning: 2, returnedToday: 4 };
+function pickGreeting(now = new Date()) {
+  const h = now.getHours(), day = now.getDay(), last = store.get('lastVisit', 0);
+  const tags = new Set(['any', h >= 5 && h < 9 ? 'earlyMorning' : h < 12 && h >= 9 ? 'morning' : h >= 12 && h < 17 ? 'afternoon' : h >= 17 && h < 22 ? 'evening' : 'lateNight']);
+  if (day === 0 || day === 6) tags.add('weekend');
+  tags.add(!last ? 'firstVisit' : new Date(last).toDateString() === now.toDateString() ? 'returnedToday' : 'returning');
+  const prev = store.get('lastGreeting', '');
+  let pool = GREETINGS.filter(g => g[1].some(t => tags.has(t))).map(g => [g[0], Math.max(...g[1].filter(t => tags.has(t)).map(t => GW[t]))]);
+  if (pool.length > 1) pool = pool.filter(p => p[0] !== prev);
+  let r = Math.random() * pool.reduce((s, p) => s + p[1], 0);
+  const text = (pool.find(p => (r -= p[1]) < 0) || pool[0])[0];
+  store.set('lastGreeting', text); store.set('lastVisit', now.getTime());
+  return text;
+}
+const NEEDS = [['anxiety', "I'm feeling anxious"], ['depression', "I'm feeling depressed"], ['grounding', 'I need some grounding']];
+
+// ---- State
+const KEY = { exercise: 'ex', affirmation: 'af', message: 'msg' };
+const COLL = { exercise: 'exercises', affirmation: 'affirmations', message: 'messages' };
+const S = { screen: 'welcome', cat: null, greeting: '', ex: null, af: null, msg: null, votes: {} };
+let data = store.get('content', FALLBACK), sb = null, deviceId = null, tick, ready = Promise.resolve();
+const sessionId = crypto.randomUUID();
+const cur = () => S[KEY[S.screen]];
+
+// ---- Exercise renderers: each exercise's `kind` picks one; its `body` (jsonb) supplies the process. Add new kinds here.
+const R = {
+  steps: b => (b.intro ? `<p>${esc(b.intro)}</p>` : '') + `<ol>${(b.steps || []).map(s => `<li>${esc(s)}</li>`).join('')}</ol>`,
+  list_input: b => `<p>${esc(b.intro || '')}</p>` + (b.groups || [{ label: b.label, count: b.count, placeholder: b.placeholder }]).map(g =>
+    `<h2>${esc(g.label || '')}</h2>` + Array.from({ length: g.count || 3 }, (_, i) =>
+    `<input aria-label="${esc(g.label || 'Item')} ${i + 1}" placeholder="${esc(g.placeholder || '')}" autocomplete="off">`).join('')).join(''), // typed text stays on the device
+  timer: b => R.steps(b) + `<button class="soft" data-a="timer" data-s="${+b.seconds || 60}">Start ${+b.seconds || 60} seconds</button>`
+};
+function startTimer(btn) {
+  clearInterval(tick);
+  let n = +btn.dataset.s;
+  const go = () => { btn.textContent = n > 0 ? n + ' seconds left' : 'Time is up. Take one more slow breath.'; if (n-- <= 0) clearInterval(tick) };
+  go(); tick = setInterval(go, 1000);
+}
+
+// ---- Rendering
+function render() {
+  clearInterval(tick);
+  const k = S.screen, it = cur(), main = $('#main'), foot = $('#foot');
+  $('#back').style.visibility = k === 'affirmation' || k === 'exercise' ? 'visible' : 'hidden';
+  main.className = k === 'exercise' ? '' : k === 'affirmation' ? 'center has-blob' : 'center';
+  if (k === 'welcome') {
+    main.innerHTML = `<div class="screen welcome"><h1>${esc(S.greeting)}</h1><div class="needs">${NEEDS.map(n =>
+      `<button class="need" data-a="need" data-c="${n[0]}">${esc(n[1])}</button>`).join('')}</div></div>`;
+    foot.innerHTML = '';
+    main.scrollTop = 0;
+    return;
+  }
+  const vote = v => S.votes[k + it.id] === v;
+  if (k === 'exercise') main.innerHTML = `<div class="screen"><h1>${esc(it.title)}</h1>${(R[it.kind] || R.steps)(it.body || {})}</div>`;
+  if (k === 'affirmation') main.innerHTML = `<div class="screen said-on-blob">${BLOB}<div class="said"><p class="lead">Repeat after me:</p><div class="aff">${it.body_html}</div></div></div>`;
+  if (k === 'message') main.innerHTML = `<div class="screen"><p class="msg">${esc(it.body)}</p></div>`;
+  if (k === 'message') {
+    foot.innerHTML = `<button class="cta" data-a="restart">Restart</button>`;
+  } else {
+    foot.innerHTML = `<div class="tools">
+      <button class="tool" data-a="refresh" aria-label="Show a different one">${svg('refresh')}</button>
+      <button class="tool" data-a="up" aria-label="Vote up" aria-pressed="${vote(1)}">${svg('up')}</button>
+      <button class="tool flip" data-a="down" aria-label="Vote down" aria-pressed="${vote(-1)}">${svg('up')}</button></div>
+      <button class="cta" data-a="${k === 'exercise' ? 'next' : 'done'}">${k === 'exercise' ? 'Next' : 'Done'}</button>`;
+  }
+  main.scrollTop = 0;
+}
+// ---- Picking. Exercises and affirmations come from the server's device-weighted picker (pick_content),
+// which only looks at THIS device's history: favors unseen + up-voted items, disfavors down-voted and
+// often-shuffled ones. Offline / signed-out / slow network falls back to a plain random pick in the category.
+const inCat = (list, cat) => { const f = list.filter(x => !cat || !x.category || x.category.includes(cat)); return f.length ? f : list };
+const timeout = (ms) => new Promise(r => setTimeout(() => r(null), ms));
+async function pick(k, notId) {
+  const local = () => rnd(inCat(data[COLL[k]], S.cat), notId);
+  if (k === 'message' || !sb || !navigator.onLine) return local();
+  try {
+    await Promise.race([ready, timeout(2500)]); // let the anonymous device sign-in finish so weighting applies
+    await flush();                              // so the shuffle/vote just made counts toward this pick
+    const r = await Promise.race([
+      sb.rpc('pick_content', { p_content_type: k, p_category: S.cat, p_exclude: UUID.test(notId || '') ? [notId] : [] }),
+      timeout(3000)
+    ]);
+    return r && !r.error && r.data ? r.data : local();
+  } catch { return local() }
+}
+let busy = false;
+async function go(k, fresh) {
+  if (busy) return;
+  if (fresh && k !== 'welcome') {
+    busy = true; $('#main').setAttribute('aria-busy', 'true');
+    try { S[KEY[k]] = await pick(k, S[KEY[k]]?.id); log('view', S[KEY[k]], k) }
+    finally { busy = false; $('#main').removeAttribute('aria-busy') }
+  }
+  if (k === 'welcome') S.greeting = pickGreeting();
+  S.screen = k;
+  render();
+}
+function vote(k, it, v) {
+  const key = k + it.id, nv = S.votes[key] === v ? 0 : v;
+  S.votes[key] = nv;
+  log(nv === 1 ? 'vote_up' : nv === -1 ? 'vote_down' : 'vote_clear', it, k);
+  $('[data-a=up]').setAttribute('aria-pressed', nv === 1);
+  $('[data-a=down]').setAttribute('aria-pressed', nv === -1);
+}
+
+document.addEventListener('click', e => {
+  const b = e.target.closest('[data-a]'); if (!b) return;
+  const a = b.dataset.a, k = S.screen, it = cur();
+  if (a === 'settings') return openSettings();
+  if (a === 'timer') return startTimer(b);
+  if (busy) return;
+  if (a === 'need') { S.cat = b.dataset.c; S.ex = S.af = null; go('exercise', true) }
+  if (a === 'up' || a === 'down') return vote(k, it, a === 'up' ? 1 : -1);
+  if (a === 'refresh') { log('refresh', it, k); go(k, true) }
+  if (a === 'next') { log('next', it, 'exercise'); go('affirmation', true) }
+  if (a === 'back' && k === 'affirmation') { log('back', it, 'affirmation'); go('exercise', false) }
+  if (a === 'back' && k === 'exercise') { log('back', it, 'exercise'); go('welcome') }
+  if (a === 'done') { log('complete', S.ex, 'exercise'); log('complete', S.af, 'affirmation'); go('message', true) }
+  if (a === 'restart') { log('restart', it, 'message'); S.votes = {}; go('welcome') }
+});
+
+// ---- Settings: palette + font
+const P = [['hearth', 'Hearth', '#d8c6b2', '#6f4a33'], ['moss', 'Moss', '#cfd6c8', '#4f6b50'], ['tide', 'Tide', '#cdd8de', '#3f6477'], ['pine', 'Pine', '#1f2a27', '#8fb8a3'], ['dusk', 'Dusk', '#2b2830', '#b9a7c9']];
+const F = [['alegreya', 'Alegreya Sans'], ['source', 'Source Sans 3'], ['lora', 'Lora']];
+const prefs = store.get('prefs', { palette: 'hearth', font: 'alegreya' });
+function applyPrefs() {
+  const d = document.documentElement;
+  if (!P.some(p => p[0] === prefs.palette)) prefs.palette = 'hearth'; // e.g. a saved palette that no longer exists
+  d.dataset.palette = prefs.palette; d.dataset.font = prefs.font; store.set('prefs', prefs);
+  $('meta[name=theme-color]').content = getComputedStyle(d).getPropertyValue('--bg').trim();
+}
+function buildSettings() {
+  $('#settings .body').innerHTML = `<h2>Palette</h2><div class="opts">${P.map(p =>
+    `<button class="opt" data-p="${p[0]}" aria-pressed="${prefs.palette === p[0]}"><span class="sw" style="background:linear-gradient(135deg,${p[2]} 50%,${p[3]} 50%)"></span>${p[1]}</button>`).join('')}</div>
+    <h2>Font</h2><div class="opts">${F.map(f =>
+    `<button class="opt" data-f="${f[0]}" aria-pressed="${prefs.font === f[0]}" style="font-family:'${f[1]}',sans-serif">${f[1]}</button>`).join('')}</div>
+    <p class="small">Device ${deviceId ? deviceId.slice(0, 8) : 'offline mode'}</p>
+    <button class="soft" data-close>Close</button>`;
+}
+function openSettings() { buildSettings(); $('#settings').showModal() }
+$('#settings').addEventListener('click', e => {
+  const dlg = e.currentTarget, p = e.target.closest('[data-p]'), f = e.target.closest('[data-f]');
+  if (e.target === dlg || e.target.closest('[data-close]')) return dlg.close();
+  if (p) prefs.palette = p.dataset.p;
+  if (f) prefs.font = f.dataset.f;
+  if (p || f) { applyPrefs(); buildSettings() }
+});
+
+// ---- Analytics: events are queued locally and sent to Supabase when online.
+function log(type, item, kind, meta = {}) {
+  if (!deviceId || !item || !UUID.test(item.id)) return; // placeholder content has no uuid, so nothing is logged
+  const q = store.get('q', []);
+  q.push({ device_id: deviceId, session_id: sessionId, content_type: kind, content_id: item.id, event_type: type, meta, created_at: new Date().toISOString() });
+  store.set('q', q); flush();
+}
+let flushing = null;
+function flush() {
+  if (flushing) return flushing;
+  if (!sb || !navigator.onLine) return Promise.resolve();
+  const q = store.get('q', []); if (!q.length) return Promise.resolve();
+  flushing = (async () => {
+    try { const { error } = await sb.from('events').insert(q); if (!error) store.set('q', store.get('q', []).slice(q.length)) } catch {}
+    flushing = null;
+  })();
+  return flushing;
+}
+addEventListener('online', flush);
+
+// ---- Startup
+async function loadContent() {
+  // Content is public, so it loads whether or not the device has signed in.
+  const [x, a, m] = await Promise.all([
+    sb.from('exercises').select('id,title,kind,body,category').eq('is_active', true),
+    sb.from('affirmations').select('id,body_html,category').eq('is_active', true),
+    sb.from('completion_messages').select('id,body').eq('is_active', true)
+  ]);
+  const err = x.error || a.error || m.error;
+  if (err) throw err;
+  if (x.data?.length && a.data?.length && m.data?.length) { data = { exercises: x.data, affirmations: a.data, messages: m.data }; store.set('content', data) }
+}
+async function registerDevice() {
+  let { data: { session } } = await sb.auth.getSession();
+  if (!session) {
+    const r = await sb.auth.signInAnonymously();
+    if (r.error) throw r.error;
+    session = r.data.session;
+  }
+  deviceId = session.user.id;
+  const up = await sb.from('devices').upsert({ id: deviceId }, { ignoreDuplicates: true });
+  if (up.error) throw up.error;
+  sb.from('devices').update({ last_seen_at: new Date().toISOString() }).eq('id', deviceId).then(() => {});
+  flush();
+}
+async function init() {
+  $('#back').innerHTML = svg('back'); $('#gear').innerHTML = svg('gear');
+  applyPrefs();
+  if (CFG.url && window.supabase) {
+    sb = supabase.createClient(CFG.url, CFG.key);
+    // Wait up to 4 seconds for content so a slow network never leaves the screen blank.
+    await Promise.race([loadContent().catch(e => console.warn('Content load failed, using saved content', e)), new Promise(r => setTimeout(r, 4000))]);
+    ready = registerDevice().catch(e => console.warn('Device sign-in failed, events will not be recorded', e));
+  }
+  go('welcome');
+}
+init();
+if ('serviceWorker' in navigator) navigator.serviceWorker.register('sw.js');
+</script>
+</body>
+</html>

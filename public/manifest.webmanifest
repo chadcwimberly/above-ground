@@ -1,0 +1,11 @@
+{
+  "name": "Ground",
+  "short_name": "Ground",
+  "description": "A quiet moment of grounding.",
+  "start_url": "./",
+  "scope": "./",
+  "display": "standalone",
+  "background_color": "#d8c6b2",
+  "theme_color": "#d8c6b2",
+  "icons": [{ "src": "icon.svg", "sizes": "any", "type": "image/svg+xml", "purpose": "any" }]
+}
