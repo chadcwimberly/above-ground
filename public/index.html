@@ -230,7 +230,8 @@ function render() {
 }
 // ---- Picking. Exercises and affirmations come from the server's device-weighted picker (pick_content),
 // which only looks at THIS device's history: favors unseen + up-voted items, disfavors down-voted and
-// often-shuffled ones. Offline / signed-out / slow network falls back to a plain random pick in the category.
+// often-shuffled ones. For exercises it also learns tag taste: once a tag has 2+ net votes, unseen exercises
+// sharing up-voted tags are favored and unvoted ones sharing down-voted tags are disfavored (rarer tags count more). Offline / signed-out / slow network falls back to a plain random pick in the category.
 const inCat = (list, cat) => { const f = list.filter(x => !cat || !x.category || x.category.includes(cat)); return f.length ? f : list };
 const timeout = (ms) => new Promise(r => setTimeout(() => r(null), ms));
 async function pick(k, notId) {
