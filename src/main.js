@@ -8,7 +8,8 @@ import '@fontsource/source-sans-3/500.css';
 import { createClient } from '@supabase/supabase-js';
 import { isNative, platform, restoreSaved, mirror, authStorage, syncSystemBars, appReady, onBackButton, onAppPause,
   canVibrate, tap, followSystemTextSize, canRemind, scheduleReminders, guessCountry,
-  onDeepLink, healthAvailable, requestHealth, logMindful } from './platform.js';
+  onDeepLink, healthAvailable, requestHealth, logMindful, clearSaved, saveFile, canScan } from './platform.js';
+import { newCode, normalize, isValid, hashCode, syncLink, wordsFromLink, qrSvg, scanQR, wordlist } from './sync.js';
 
 // In the native apps, bring back saved settings, content and the event queue before anything reads them.
 await restoreSaved();
@@ -277,8 +278,12 @@ function applyPrefs() {
 }
 const DAYS = [[1, 'S', 'Sunday'], [2, 'M', 'Monday'], [3, 'T', 'Tuesday'], [4, 'W', 'Wednesday'], [5, 'T', 'Thursday'], [6, 'F', 'Friday'], [7, 'S', 'Saturday']];
 let health = ''; // 'Apple Health' / 'Health Connect' when this device can save mindful minutes
+let sv = 'main'; // which Settings page is showing: main, sync, join, privacy
 function buildSettings(note = '') {
-  const r = prefs.reminders;
+  if (sv === 'sync') return syncView(note);
+  if (sv === 'join') return joinView('', note);
+  if (sv === 'privacy') return privacyView(note);
+  const r = prefs.reminders, online = !!(sb && deviceId);
   $('#settings .body').innerHTML = `<h2>Theme</h2><div class="opts">${P.map(p =>
     `<button class="opt" data-p="${p[0]}" aria-pressed="${prefs.palette === p[0]}"><span class="sw" style="background:linear-gradient(135deg,${p[2]} 50%,${p[3]} 50%)"></span>${p[1]}</button>`).join('')}</div>
     <h2>Font</h2><div class="opts">${F.map(f =>
@@ -290,6 +295,13 @@ function buildSettings(note = '') {
         `<button class="opt text day" data-day="${n}" aria-label="${full}" aria-pressed="${r.days.includes(n)}">${l}</button>`).join('')}</div></div>` : ''}
       ${note ? `<p class="small" role="status">${esc(note)}</p>` : ''}` : ''}
     ${health ? `<h2>${health}</h2><div class="opts"><button class="opt text" data-t="health" aria-pressed="${!!prefs.health}">Save mindful minutes</button></div>` : ''}
+    <h2>Sync across devices</h2>
+    <p class="small tight">Use the same settings and history on your other devices. No account needed.${profile?.devices > 1
+      ? ` This device is synced with ${profile.devices - 1} other device${profile.devices > 2 ? 's' : ''}.` : ''}</p>
+    <div class="opts"><button class="opt text" data-v="sync" ${online ? '' : 'disabled'}>Show my sync code</button>
+      <button class="opt text" data-v="join" ${online ? '' : 'disabled'}>I have a sync code</button></div>
+    <h2>Privacy</h2><div class="opts"><button class="opt text" data-v="privacy" ${online ? '' : 'disabled'}>Download or delete my data</button></div>
+    ${online ? '' : '<p class="small tight">Sync and privacy tools need an internet connection.</p>'}
     <p class="small">Above Ground offers support for everyday moments. It isn't a replacement for professional care.
       <button class="link" data-a="help">Need more help?</button></p>
     <p class="small">Device: ${deviceId ? (deviceName ? `${esc(deviceName)} (${deviceId.slice(0, 8)})` : deviceId.slice(0, 8)) : 'offline mode'}<br>
@@ -307,7 +319,217 @@ function fmtRelease(iso) {
   const t = d.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' }).replace(/\s?(AM|PM)$/i, (_, m) => m.toLowerCase());
   return `${t} ${d.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}`;
 }
-function openSettings() { buildSettings(); $('#settings').showModal() }
+function openSettings(view = 'main', words = '') {
+  sv = view;
+  if (view === 'join' && words) joinView(words); else buildSettings();
+  if (!$('#settings').open) $('#settings').showModal();
+}
+$('#settings').addEventListener('close', () => { sv = 'main'; stopScan() });
+const sub = title => `<button class="link back-link" data-v="main">‹ Settings</button><h1 class="sub-title" tabindex="-1">${esc(title)}</h1>`;
+const setBody = (html, focus = true) => { const b = $('#settings .body'); b.innerHTML = html; if (focus) b.querySelector('.sub-title')?.focus() };
+const offlineNote = title => setBody(sub(title) + `<p>This needs an internet connection. Please try again when you're online.</p>`);
+const plural = (n, w) => `${n} ${w}${n === 1 ? '' : 's'}`;
+
+// ---- Sync: show this profile's 12-word code and QR code, link another device, manage linked devices.
+async function makeCode() {
+  const words = newCode(), hash = await hashCode(words);
+  const { error } = await sb.rpc('set_sync_code', { p_hash: hash });
+  if (error) throw error;
+  store.set('syncWords', words); profile.sync_code_hash = hash;
+  return words;
+}
+async function devicesHtml() {
+  const { data: list } = await sb.rpc('linked_devices');
+  if (!list || list.length < 2) return '<p class="small">No other devices are linked yet.</p>';
+  return `<h2>Linked devices</h2><ul class="devices">${list.map(d => `<li><span>${esc(d.name)}${d.is_me ? ' <em>(this device)</em>' : ''}</span>
+    ${d.is_me ? `<button class="link" data-s="leave">Stop syncing</button>` : `<button class="link" data-s="unlink" data-id="${esc(d.id)}">Remove</button>`}</li>`).join('')}</ul>`;
+}
+async function syncView(note = '', confirm = false) {
+  const title = 'Your sync code';
+  if (!sb || !deviceId || !navigator.onLine) return offlineNote(title);
+  if (!$('#settings .sub-title')) setBody(sub(title) + '<p class="small">Loading…</p>');
+  try {
+    await loadProfile();
+    let words = store.get('syncWords', '');
+    const mine = !!words && !!profile?.sync_code_hash && await hashCode(words) === profile.sync_code_hash;
+    if (!profile?.sync_code_hash) words = await makeCode();
+    const replace = confirm ? `<p>Make a new code? The old one stops working for new devices. Devices already linked stay linked.</p>
+        <div class="opts"><button class="soft" data-s="newcode-yes">Yes, make a new code</button><button class="soft" data-v="sync">Cancel</button></div>`
+      : `<button class="soft" data-s="newcode">Make a new code</button>`;
+    if (profile.sync_code_hash && !mine && !(await hashCode(words || '') === profile.sync_code_hash)) {
+      return setBody(sub(title) + (note ? `<p class="small" role="status">${esc(note)}</p>` : '') +
+        `<p>Your sync code was made on another device. Open Settings there to see it, or make a new code here.</p>${replace}${await devicesHtml()}`);
+    }
+    const list = normalize(words).split(' ');
+    const qr = await qrSvg(syncLink(words), getComputedStyle(document.documentElement).getPropertyValue('--ink').trim());
+    setBody(sub(title) + (note ? `<p class="small" role="status">${esc(note)}</p>` : '') +
+      `<p class="small tight">On your other device, open Settings → I have a sync code, then type these words or scan the QR code.</p>
+      <div class="secret" data-hidden><ol class="words">${list.map(w => `<li>${esc(w)}</li>`).join('')}</ol>
+        <div class="qr" role="img" aria-label="QR code with your sync link">${qr}</div></div>
+      <div class="opts"><button class="soft" data-s="reveal" aria-pressed="false">Reveal</button><button class="soft" data-s="copy">Copy words</button></div>
+      <p class="small">Anyone with these words can see and change your synced settings. Keep them somewhere private.
+        If you lose every linked device, the code is gone too.</p>
+      ${replace}${await devicesHtml()}`);
+  } catch (e) { console.warn(e); setBody(sub(title) + '<p>Something went wrong. Please try again.</p>') }
+}
+
+let scanning = null;
+function stopScan() { scanning?.abort(); scanning = null; const s = $('#settings .scan'); if (s) s.hidden = true }
+function joinView(prefill = '', note = '') {
+  const title = 'I have a sync code';
+  if (!sb || !deviceId || !navigator.onLine) return offlineNote(title);
+  const w = normalize(prefill).split(' ').filter(Boolean);
+  if (!$('#bip39')) document.body.insertAdjacentHTML('beforeend', `<datalist id="bip39">${wordlist.map(x => `<option value="${x}">`).join('')}</datalist>`);
+  setBody(sub(title) + `<p class="small tight">On your other device, open Settings → Show my sync code. Type its 12 words here${canScan ? ', or scan its QR code' : ''}.</p>
+    <div class="word-inputs">${Array.from({ length: 12 }, (_, i) => `<label><span aria-hidden="true">${i + 1}</span><input data-w="${i}" list="bip39"
+      autocomplete="off" autocapitalize="none" autocorrect="off" spellcheck="false" enterkeyhint="next" aria-label="Word ${i + 1}" value="${esc(w[i] || '')}"></label>`).join('')}</div>
+    ${canScan ? `<button class="soft" data-s="scan">Scan a QR code</button><div class="scan" hidden><video muted playsinline></video>
+      <button class="link" data-s="scan-stop">Stop scanning</button></div>` : ''}
+    <p class="small" role="status" id="join-note">${esc(note)}</p>
+    <div id="join-act"><button class="cta" data-s="join">Link this device</button></div>`);
+}
+const joinWords = () => [...document.querySelectorAll('[data-w]')].map(i => i.value).join(' ');
+function fillWords(text, from = 0) {
+  const w = normalize(wordsFromLink(text) || text).split(' ').filter(Boolean), inputs = document.querySelectorAll('[data-w]');
+  w.slice(0, 12 - from).forEach((x, i) => { inputs[from + i].value = x });
+  inputs[Math.min(11, from + w.length)]?.focus();
+}
+async function doJoin(keep) {
+  const note = t => { $('#join-note').textContent = t }, words = joinWords();
+  if (!isValid(words)) return note("Those words don't make a sync code. Check each word for typos.");
+  if (!profile) await loadProfile();
+  if (keep === undefined && profile?.my_events > 0) {
+    $('#join-act').innerHTML = `<p>Bring this device's history into your synced profile?</p>
+      <div class="opts"><button class="cta" data-s="join-keep">Yes, bring it along</button><button class="soft" data-s="join-fresh">No, leave it behind</button></div>`;
+    return $('[data-s=join-keep]').focus();
+  }
+  note('Linking…');
+  const { data: r, error } = await sb.rpc('join_profile', { p_hash: await hashCode(words), p_keep_history: keep !== false });
+  if (error || !r) { note('Something went wrong. Please try again.'); return }
+  if (!r.ok) {
+    $('#join-act').innerHTML = '<button class="cta" data-s="join">Link this device</button>';
+    return note(r.reason === 'too_many_tries' ? 'Too many tries. Please wait an hour, then try again.'
+      : 'No device uses that sync code. Check the words on your other device.');
+  }
+  profile = r; store.set('syncWords', normalize(words));
+  if (r.prefs && Object.keys(r.prefs).length) adoptPrefs(r.prefs, r.prefs_updated_at); // the synced profile's settings win
+  sv = 'sync';
+  syncView(`Linked. This device now shares settings and history with ${plural(r.devices - 1, 'other device')}.`);
+}
+
+// ---- Privacy: download everything stored for this profile, or delete it.
+let delScope = 'device';
+function privacyView(note = '', confirm = false) {
+  const title = 'Your data';
+  if (!sb || !deviceId || !navigator.onLine) return offlineNote(title);
+  const many = profile?.devices > 1;
+  if (!many) delScope = 'device';
+  const what = delScope === 'everything'
+    ? 'Deletes your settings, history and sync code from every linked device.'
+    : many ? "Deletes this device's history and its anonymous ID. Your other linked devices keep theirs." : 'Deletes your settings, history and anonymous ID.';
+  setBody(sub(title) + (note ? `<p class="small" role="status">${esc(note)}</p>` : '') +
+    `<p class="small tight">Above Ground stores your settings, which exercises you've seen and your votes, under an anonymous ID.
+      It never stores your name, email or anything you type into an exercise.</p>
+    <h2>Download my data</h2><button class="soft" data-s="export">Download my data</button>
+    <h2>Delete my data</h2>
+    ${many ? `<div class="opts"><button class="opt text" data-s="scope" data-scope="device" aria-pressed="${delScope === 'device'}">This device only</button>
+      <button class="opt text" data-s="scope" data-scope="everything" aria-pressed="${delScope === 'everything'}">Everything, on all linked devices</button></div>` : ''}
+    <p class="small tight">${what} It happens right away and can't be undone.</p>
+    ${confirm ? `<p>Are you sure?</p><div class="opts"><button class="soft danger" data-s="delete-yes">Yes, delete</button><button class="soft" data-s="delete-no">Cancel</button></div>`
+      : '<button class="soft danger" data-s="delete">Delete my data</button>'}`, !confirm);
+  if (confirm) $('[data-s=delete-no]')?.focus();
+}
+
+// Sync, join and privacy actions.
+$('#settings').addEventListener('click', async e => {
+  const v = e.target.closest('[data-v]'), b = e.target.closest('[data-s]');
+  if (v) { stopScan(); sv = v.dataset.v; if (sv === 'join') joinView(); else buildSettings(); return }
+  if (!b) return;
+  const s = b.dataset.s;
+  try {
+    if (s === 'reveal') { const box = $('.secret'), on = box.hasAttribute('data-hidden'); box.toggleAttribute('data-hidden', !on); b.textContent = on ? 'Hide' : 'Reveal'; b.setAttribute('aria-pressed', on) }
+    if (s === 'copy') { await navigator.clipboard.writeText(normalize(store.get('syncWords', ''))); b.textContent = 'Copied' }
+    if (s === 'newcode') syncView('', true);
+    if (s === 'newcode-yes') { await makeCode(); syncView('Your new code is ready. Linked devices stay linked.') }
+    if (s === 'unlink') { b.disabled = true; await sb.rpc('unlink_device', { p_device: b.dataset.id }); syncView('That device is no longer linked. It keeps its own settings.') }
+    if (s === 'leave') { b.disabled = true; await sb.rpc('unlink_device', { p_device: deviceId }); store.set('syncWords', ''); sv = 'main'; await loadProfile(); buildSettings() }
+    if (s === 'scan') {
+      const box = $('#settings .scan'); box.hidden = false; b.hidden = true;
+      scanning = new AbortController();
+      const text = await scanQR(box.querySelector('video'), scanning.signal).catch(() => null);
+      stopScan(); b.hidden = false;
+      if (text && wordsFromLink(text)) { fillWords(text); $('#join-note').textContent = 'Scanned. Check the words, then link this device.' }
+      else if (text) $('#join-note').textContent = "That QR code isn't an Above Ground sync code.";
+      else if (!scanning) $('#join-note').textContent = '';
+    }
+    if (s === 'scan-stop') stopScan();
+    if (s === 'join') await doJoin();
+    if (s === 'join-keep') await doJoin(true);
+    if (s === 'join-fresh') await doJoin(false);
+    if (s === 'scope') { delScope = b.dataset.scope; privacyView() }
+    if (s === 'delete') privacyView('', true);
+    if (s === 'delete-no') privacyView();
+    if (s === 'export') {
+      b.disabled = true; b.textContent = 'Preparing…';
+      const { data: d, error } = await sb.rpc('export_my_data');
+      if (error) throw error;
+      await saveFile(`above-ground-data-${new Date().toISOString().slice(0, 10)}.json`, JSON.stringify({ ...d, this_device_settings: prefs }, null, 2));
+      b.disabled = false; b.textContent = 'Download my data';
+    }
+    if (s === 'delete-yes') {
+      b.disabled = true; b.textContent = 'Deleting…';
+      const { error } = await sb.rpc('delete_my_data', { p_scope: delScope });
+      if (error) throw error;
+      await clearSaved([CACHE_KEY, 'version']); // keep the saved exercises so the app still opens offline
+      location.reload();
+    }
+  } catch (err) {
+    console.warn(err);
+    if (s === 'scan') { stopScan(); $('[data-s=scan]').hidden = false; $('#join-note').textContent = "Can't use the camera. You can type the words instead." }
+    else { b.disabled = false; announce('Something went wrong. Please try again.'); const n = $('#settings [role=status]'); if (n) n.textContent = 'Something went wrong. Please try again.' }
+  }
+});
+// Pasting or typing several words into one box fills the following boxes.
+$('#settings').addEventListener('input', e => {
+  const i = e.target.closest('[data-w]'); if (!i) return;
+  if ($('#join-note')) $('#join-note').textContent = '';
+  if (/[\s,.#-]/.test(i.value.trim()) || i.value.trim().split(/\s+/).length > 1) fillWords(i.value, +i.dataset.w);
+  else if (i.value.endsWith(' ')) { i.value = i.value.trim(); document.querySelector(`[data-w="${+i.dataset.w + 1}"]`)?.focus() }
+});
+
+// ---- Profile: settings shared by devices with the same sync code (latest change wins), plus tip-jar state.
+// Device-specific settings (reminders on/off, Health) stay on each device.
+let profile = null;
+const SYNCED = ['palette', 'font', 'haptics', 'country'];
+const syncedPrefs = () => ({ ...Object.fromEntries(SYNCED.filter(k => prefs[k] !== undefined).map(k => [k, prefs[k]])),
+  reminders: { time: prefs.reminders.time, days: prefs.reminders.days } });
+function adoptPrefs(remote, at) {
+  for (const k of SYNCED) if (k in remote) prefs[k] = remote[k];
+  if (remote.reminders) {
+    prefs.reminders.time = remote.reminders.time ?? prefs.reminders.time;
+    prefs.reminders.days = remote.reminders.days ?? prefs.reminders.days;
+    if (prefs.reminders.enabled) updateReminders(false);
+  }
+  prefs.updatedAt = at; applyPrefs();
+  if ($('#settings').open && sv === 'main') buildSettings();
+}
+let saveTimer;
+function prefsChanged() { prefs.updatedAt = new Date().toISOString(); store.set('prefs', prefs); clearTimeout(saveTimer); saveTimer = setTimeout(pushPrefs, 800) }
+function pushPrefs() {
+  if (sb && deviceId && navigator.onLine) sb.rpc('save_profile', { p_prefs: syncedPrefs(), p_prefs_updated_at: prefs.updatedAt }).then(() => {}, () => {});
+}
+let profileAt = 0;
+async function loadProfile() {
+  if (!sb || !deviceId) return;
+  const { data: p, error } = await sb.rpc('get_profile');
+  if (error || !p) return;
+  profile = p; profileAt = Date.now();
+  const remoteAt = p.prefs_updated_at ? Date.parse(p.prefs_updated_at) : 0, localAt = prefs.updatedAt ? Date.parse(prefs.updatedAt) : 0;
+  if (remoteAt > localAt && Object.keys(p.prefs || {}).length) adoptPrefs(p.prefs, p.prefs_updated_at);
+  else if (localAt > remoteAt || !remoteAt) { if (!localAt) { prefs.updatedAt = new Date().toISOString(); store.set('prefs', prefs) } pushPrefs() }
+}
+// Coming back to the app: pick up changes made on linked devices (at most once a minute).
+document.addEventListener('visibilitychange', () => { if (!document.hidden && Date.now() - profileAt > 60000) loadProfile().catch(() => {}) });
 $('#settings').addEventListener('click', async e => {
   const dlg = e.currentTarget, p = e.target.closest('[data-p]'), f = e.target.closest('[data-f]'), t = e.target.closest('[data-t]'), day = e.target.closest('[data-day]');
   if (e.target === dlg || e.target.closest('[data-close]')) return dlg.close();
@@ -326,11 +548,11 @@ $('#settings').addEventListener('click', async e => {
     prefs.reminders.days = d.includes(n) ? d.filter(x => x !== n) : [...d, n].sort();
     applyPrefs(); note = await updateReminders(false);
   }
-  if (p || f || t || day) { applyPrefs(); buildSettings(note) }
+  if (p || f || t || day) { applyPrefs(); prefsChanged(); buildSettings(note) }
 });
 $('#settings').addEventListener('change', async e => {
   if (e.target.id !== 'r-time' || !e.target.value) return;
-  prefs.reminders.time = e.target.value; applyPrefs(); await updateReminders(false);
+  prefs.reminders.time = e.target.value; applyPrefs(); prefsChanged(); await updateReminders(false);
 });
 
 // ---- "Need more help?": the crisis line for the person's country (rows in `crisis_resources`), with a way to
@@ -364,7 +586,7 @@ function buildHelp() {
 // 116123 -> 116 123, 131114 -> 13 11 14; short codes (988) stay as they are.
 const fmtPhone = n => n.length === 6 && n.startsWith('13') ? `${n.slice(0, 2)} ${n.slice(2, 4)} ${n.slice(4)}` : n.length === 6 ? `${n.slice(0, 3)} ${n.slice(3)}` : n;
 $('#help').addEventListener('click', e => { if (e.target === e.currentTarget || e.target.closest('[data-close]')) e.currentTarget.close() });
-$('#help').addEventListener('change', e => { if (e.target.id === 'help-country') { prefs.country = e.target.value; applyPrefs(); buildHelp(); $('#help-country')?.focus() } });
+$('#help').addEventListener('change', e => { if (e.target.id === 'help-country') { prefs.country = e.target.value; applyPrefs(); prefsChanged(); buildHelp(); $('#help-country')?.focus() } });
 
 // ---- Analytics: events are queued locally and sent to Supabase when online.
 function log(type, item, kind, meta = {}) {
@@ -475,7 +697,7 @@ async function init() {
     // Web: default storage (localStorage), so existing devices keep their sign-in. Native: Preferences.
     sb = createClient(CFG.url, CFG.key, { auth: { storage: authStorage, detectSessionInUrl: !isNative } });
     await loadWithWait();
-    ready = registerDevice().catch(e => console.warn('Device sign-in failed, events will not be recorded', e));
+    ready = registerDevice().then(loadProfile).catch(e => console.warn('Device sign-in failed, events will not be recorded', e));
     // Reschedule reminders each launch so they use the latest messages and rotate which one shows.
     if (prefs.reminders.enabled) setTimeout(() => updateReminders(false), 5000);
     // Offline: show the name saved for this device last time.
@@ -497,6 +719,7 @@ function handleLink(l) {
   if (!started) { pendingLink = l; return }
   pendingLink = null;
   if (l.route === 'help') return openHelp();
+  if (l.route === 'sync') return ready.then(() => openSettings('join', l.words || ''));
   if (l.route === 'start') return l.feeling ? startCategory(l.feeling) : go('welcome');
 }
 onDeepLink(handleLink);

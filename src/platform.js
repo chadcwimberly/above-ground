@@ -9,6 +9,8 @@ import { App } from '@capacitor/app';
 import { Haptics, ImpactStyle } from '@capacitor/haptics';
 import { LocalNotifications } from '@capacitor/local-notifications';
 import { TextZoom } from '@capacitor/text-zoom';
+import { Filesystem, Directory, Encoding } from '@capacitor/filesystem';
+import { Share } from '@capacitor/share';
 
 export const isNative = Capacitor.isNativePlatform();
 export const platform = Capacitor.getPlatform(); // 'web' | 'ios' | 'android'
@@ -29,6 +31,26 @@ export function mirror(key, value) {
   if (!isNative) return;
   (value === null ? Preferences.remove({ key }) : Preferences.set({ key, value })).catch(() => {});
 }
+
+// Forget everything saved on this device (after "Delete my data").
+export async function clearSaved(keep = []) {
+  const kept = keep.map(k => [k, localStorage.getItem(k)]);
+  try { localStorage.clear() } catch {}
+  kept.forEach(([k, v]) => { if (v !== null) localStorage.setItem(k, v) });
+  if (isNative) { try { await Preferences.clear(); await Promise.all(kept.filter(([, v]) => v !== null).map(([key, value]) => Preferences.set({ key, value }))) } catch {} }
+}
+
+// Save a text file the person asked for ("Download my data"): a download on the web, the share sheet in the apps.
+export async function saveFile(name, text, mime = 'application/json') {
+  if (!isNative) {
+    const a = Object.assign(document.createElement('a'), { href: URL.createObjectURL(new Blob([text], { type: mime })), download: name });
+    document.body.append(a); a.click(); a.remove(); setTimeout(() => URL.revokeObjectURL(a.href), 10000);
+    return;
+  }
+  const { uri } = await Filesystem.writeFile({ path: name, data: text, directory: Directory.Cache, encoding: Encoding.UTF8 });
+  await Share.share({ title: name, files: [uri] });
+}
+export const canScan = !!navigator.mediaDevices?.getUserMedia;
 
 // Supabase keeps its sign-in session here. On the web this stays undefined, so supabase-js keeps using
 // localStorage under the same key as before and existing devices keep their identity.
@@ -121,8 +143,19 @@ export function guessCountry() {
 export function onDeepLink(handler) {
   const web = new URLSearchParams(location.search);
   if (web.has('start') || web.has('help')) handler({ route: web.has('help') ? 'help' : 'start', feeling: web.get('start') });
+  // A sync link opened in the browser (https://aboveground.app/sync#word-word-...). Take the words out of the address bar.
+  if (/\/sync\/?$/.test(location.pathname) && location.hash.length > 1) {
+    const words = decodeURIComponent(location.hash.slice(1));
+    history.replaceState(null, '', location.pathname.replace(/sync\/?$/, '') + location.search);
+    handler({ route: 'sync', words });
+  }
   if (!isNative) return;
-  const parse = url => { try { const u = new URL(url); return { route: u.host || u.pathname.replace(/^\/+/, ''), feeling: u.searchParams.get('feeling') } } catch { return null } };
+  // aboveground://start?feeling=…, aboveground://help, aboveground://sync#words, and https://aboveground.app/… links.
+  const parse = url => { try {
+    const u = new URL(url), web = /^https?:$/.test(u.protocol);
+    return { route: (web ? u.pathname : u.host || u.pathname).replace(/^\/+|\/+$/g, ''), feeling: u.searchParams.get('feeling'),
+      words: u.hash.length > 1 ? decodeURIComponent(u.hash.slice(1)) : '' };
+  } catch { return null } };
   App.getLaunchUrl().then(r => { const l = r?.url && parse(r.url); if (l) handler(l) }).catch(() => {});
   App.addListener('appUrlOpen', e => { const l = parse(e.url); if (l) handler(l) });
 }
