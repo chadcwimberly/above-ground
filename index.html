@@ -137,6 +137,14 @@ header{align-items:center}
 @media (prefers-reduced-motion:reduce){.breath{display:none}}
 
 /* Visually hidden, still read by screen readers */
+.update{position:fixed;left:50%;bottom:calc(1rem + var(--safe-area-inset-bottom,env(safe-area-inset-bottom)));transform:translateX(-50%);
+  width:calc(100% - 2rem);max-width:30rem;display:flex;align-items:center;gap:.75rem;padding:.8rem .8rem .8rem 1.2rem;
+  border-radius:1.25rem;background:var(--surface);color:var(--ink);box-shadow:0 .4rem 1.5rem color-mix(in srgb,var(--ink) 25%,transparent);
+  animation:fade .3s;z-index:10}
+.update[hidden]{display:none}
+.update p{margin:0;flex:1;font-size:1rem;line-height:1.35}
+.update button{border:0;border-radius:.9rem;padding:.6rem 1rem;background:var(--accent);color:var(--on);font-weight:500;white-space:nowrap}
+.update .later{background:transparent;color:var(--ink);padding:.6rem .5rem}
 .sr{position:absolute;width:1px;height:1px;margin:-1px;overflow:hidden;clip:rect(0 0 0 0);white-space:nowrap}
 
 @keyframes fade{from{opacity:0}to{opacity:1}}
@@ -158,6 +166,11 @@ header{align-items:center}
 </div>
 <dialog id="settings" aria-label="Settings"><div class="body"></div></dialog>
 <dialog id="help" aria-label="Need more help?"><div class="body"></div></dialog>
+<div id="update" class="update" role="region" aria-label="Update available" hidden>
+  <p>A new version of Above Ground is ready.</p>
+  <button class="later" data-update="later">Later</button>
+  <button data-update="refresh">Refresh</button>
+</div>
 <p id="sr" class="sr" aria-live="polite"></p>
 
 <script type="module" src="/src/main.js"></script>
