@@ -1,0 +1,53 @@
+# Checks that the website, Android app and iOS app all build on every push and pull request.
+# Unsigned test builds for now; signed store uploads come with the release workflow once the
+# developer accounts exist. Each run attaches an Android APK you can install on a phone for testing
+# and an iOS Simulator app you can drag into Simulator on a Mac.
+name: Native builds
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+concurrency:
+  group: native-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  android:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with: { node-version: 22, cache: npm }
+      - uses: actions/setup-java@v4
+        with: { distribution: temurin, java-version: 21 }
+      - run: npm ci
+      - run: npm run native
+      - name: Build debug APK
+        working-directory: android
+        run: ./gradlew assembleDebug --no-daemon
+      - uses: actions/upload-artifact@v4
+        with:
+          name: above-ground-android-debug
+          path: android/app/build/outputs/apk/debug/app-debug.apk
+
+  ios:
+    runs-on: macos-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with: { node-version: 22, cache: npm }
+      - run: npm ci
+      - run: npm run native
+      - name: Build for iOS Simulator (unsigned)
+        run: |
+          xcodebuild -project ios/App/App.xcodeproj -scheme App -configuration Debug \
+            -destination 'generic/platform=iOS Simulator' -derivedDataPath build \
+            CODE_SIGNING_ALLOWED=NO build
+          cd build/Build/Products/Debug-iphonesimulator && zip -qry "$GITHUB_WORKSPACE/AboveGround-simulator.zip" App.app
+      - uses: actions/upload-artifact@v4
+        with:
+          name: above-ground-ios-simulator
+          path: AboveGround-simulator.zip

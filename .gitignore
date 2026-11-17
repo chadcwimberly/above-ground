@@ -1,2 +1,10 @@
-# Generated at deploy time by scripts/stamp-version.mjs
+# Generated at build time by scripts/stamp-version.mjs
 public/version.json
+
+# Dependencies and build output
+node_modules/
+dist/
+
+# Local
+.DS_Store
+*.log

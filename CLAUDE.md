@@ -2,7 +2,8 @@
 
 ## Releases (owner's standing instruction)
 Claude owns versioning, building and scripting. The owner never bumps versions manually.
-- Every commit pushed to `main` that changes the app (`public/`, `scripts/`, `netlify.toml`, database behavior the app uses)
+- Every commit pushed to `main` that changes the app (`index.html`, `src/`, `public/`, `scripts/`, `ios/`, `android/`,
+  `capacitor.config.json`, `vite.config.js`, `netlify.toml`, database behavior the app uses)
   gets a version bump in `package.json`, using Semantic Versioning: PATCH for fixes, MINOR for new features,
   MAJOR for changes that break saved data or flows.
 - Docs-only or repo-housekeeping commits don't need a bump.
@@ -13,3 +14,10 @@ Claude owns versioning, building and scripting. The owner never bumps versions m
 Supabase is the single source of truth for content (exercises, affirmations, completion messages, greetings).
 Never hard-code content in the app. Schema changes go in `supabase/migrations/` (named with the applied version);
 content rows live only in the database.
+
+## Platforms
+One codebase: the website (Netlify, publishes `dist/`) and the iOS/Android apps (Capacitor, app ID `app.aboveground`).
+- Keep web behavior unchanged unless asked; put web/native differences in `src/platform.js`.
+- After changing app code or the version, run `npm run native` so the native projects get the new build and version,
+  and restore `public/sw.js` (the build stamps its cache name) before committing.
+- Don't commit `dist/` or the web copies inside the native projects (gitignored).
