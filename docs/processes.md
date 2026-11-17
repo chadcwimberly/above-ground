@@ -144,10 +144,18 @@ an optional later step. Build numbers come from `scripts/sync-native-version.mjs
 
 ## 9. Open work (update as items close)
 
+Chad's own steps (accounts, DNS, store setup, secrets) are numbered in the "All Tasks" section of the Remaining
+Human Tasks doc: https://claude.ai/artifact/Uov4eGeBoRhFziy9vH6qYk. Keep it in step with this list.
+
+
 - [ ] Chad confirms the Netlify domain + GoDaddy DNS; then verify https://aboveground.app and switch the docs to it.
 - [ ] Chad sets up ImprovMX; then send a test email to any@aboveground.app.
 - [x] "Why this works" summaries approved and loaded for all 56 exercises (2026-11-17).
+- [x] Smooth animations (1.9.0). Motion lives in the "Motion" block of `index.html` and `swap()` in `src/main.js`;
+  everything must stay off under reduced motion.
 - [ ] Privacy and support pages for aboveground.app (needs Chad's contact email).
+- [ ] Web tip links into `tip_options` (needs Chad's three payment links).
+- [ ] Universal Links / App Links for `aboveground.app/sync` (needs the Apple Team ID and the Play app-signing SHA-256).
 - [x] Sync code (12 words + QR) and delete-my-data (1.7.0).
 - [x] Tip jar (1.8.0). Goes live per platform once the store products / web payment links exist (see below).
 - [ ] Signed release workflow → TestFlight / Play internal testing (needs developer accounts).
