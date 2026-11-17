@@ -21,3 +21,7 @@ One codebase: the website (Netlify, publishes `dist/`) and the iOS/Android apps 
 - After changing app code or the version, run `npm run native` so the native projects get the new build and version,
   and restore `public/sw.js` (the build stamps its cache name) before committing.
 - Don't commit `dist/` or the web copies inside the native projects (gitignored).
+
+## Previews
+Make changes on a branch and open a pull request; don't push app changes straight to `main`. The PR gets an automatic
+preview comment (website, Android APK, iOS Simulator command). Check the deploy preview before merging.

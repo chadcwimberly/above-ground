@@ -27,6 +27,17 @@ pull request and attaches an installable Android debug APK and an iOS Simulator 
 - Android: `FeelingsWidget.java` + `res/layout/feelings_widget.xml`, `res/xml/shortcuts.xml` (launcher shortcuts and
   App Actions), `HealthPlugin.java` (Health Connect, Android 16+, registered in `MainActivity.java`).
 
+## Previewing changes before they go live
+Changes go through pull requests. Each pull request gets a comment (updated on every push) with:
+- **Website:** the Netlify deploy preview, `https://deploy-preview-<N>--above-ground.netlify.app` (Netlify sign-in).
+- **Android:** a direct APK download and QR code (prerelease `pr-<N>`); open it on a phone to install.
+- **iPhone:** `npm run preview:ios -- <N>` on a Mac installs and opens that build in the iPhone Simulator
+  (needs Xcode and the GitHub CLI, `brew install gh && gh auth login`).
+
+Every push to `main` publishes the same as prerelease `dev`: the latest development build
+(`npm run preview:ios` with no number opens it). Preview prereleases are removed when their pull request closes.
+Once the store accounts exist, releases will also go to TestFlight and Google Play internal testing.
+
 ## Storage
 On the web, settings, cached content and the event queue live in localStorage, and Supabase keeps its
 anonymous sign-in there too. In the native apps localStorage is only a cache: every value is mirrored to

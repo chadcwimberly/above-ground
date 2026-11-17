@@ -4,6 +4,11 @@ All notable changes to Above Ground. Versions follow [Semantic Versioning](https
 MAJOR for changes that break saved data or flows, MINOR for new features, PATCH for fixes.
 The exact time each version went live is shown in the app under Settings → Last Updated.
 
+## 1.5.2 — 2026-11-17
+- Developer previews: every pull request gets a comment with its website preview, an installable Android APK
+  (with QR code) and a one-command iPhone Simulator preview (`npm run preview:ios -- <N>`); `main` publishes
+  the latest development build as the `dev` prerelease
+
 ## 1.5.1 — 2026-11-17
 - Website ready for aboveground.app: "Above Ground" as the installed web app's name (was "Ground"),
   a page description, and canonical and sharing tags pointing at https://aboveground.app/

@@ -1,7 +1,12 @@
-# Checks that the website, Android app and iOS app all build on every push and pull request.
-# Unsigned test builds for now; signed store uploads come with the release workflow once the
-# developer accounts exist. Each run attaches an Android APK you can install on a phone for testing
-# and an iOS Simulator app you can drag into Simulator on a Mac.
+# Builds and publishes preview versions of the app on every pull request and every push to main.
+#
+#   Pull request #N  -> website:  https://deploy-preview-N--above-ground.netlify.app (Netlify)
+#                       Android:  installable APK on the prerelease "pr-N" (direct download, QR code in the PR)
+#                       iOS:      Simulator build; on a Mac run `npm run preview:ios -- N`
+#   Push to main     -> the same, published as the prerelease "dev" (the latest development build)
+#
+# A comment on each pull request collects the links and is updated on every push. Unsigned test builds:
+# store uploads (TestFlight / Play internal testing) come with the release workflow once the accounts exist.
 name: Native builds
 
 on:
@@ -14,9 +19,19 @@ concurrency:
   group: native-${{ github.ref }}
   cancel-in-progress: true
 
+permissions:
+  contents: write        # publish preview APKs as prereleases
+  pull-requests: write   # post the preview comment
+
+env:
+  # pr-12 for pull request #12, dev for main
+  LABEL: ${{ github.event_name == 'pull_request' && format('pr-{0}', github.event.number) || 'dev' }}
+
 jobs:
   android:
     runs-on: ubuntu-latest
+    outputs:
+      apk_url: ${{ steps.publish.outputs.apk_url }}
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
@@ -28,6 +43,21 @@ jobs:
       - name: Build debug APK
         working-directory: android
         run: ./gradlew assembleDebug --no-daemon
+      - name: Publish the APK as a prerelease
+        id: publish
+        if: github.event_name != 'workflow_dispatch'
+        env:
+          GH_TOKEN: ${{ github.token }}
+          SHA: ${{ github.event.pull_request.head.sha || github.sha }}
+          TITLE: ${{ github.event_name == 'pull_request' && format('Preview build for pull request {0}', github.event.number) || 'Latest development build (main)' }}
+        run: |
+          VERSION=$(node -p "require('./package.json').version")
+          APK="above-ground-$LABEL.apk"
+          cp android/app/build/outputs/apk/debug/app-debug.apk "$APK"
+          gh release delete "$LABEL" --cleanup-tag --yes 2>/dev/null || true
+          gh release create "$LABEL" "$APK" --prerelease --target "$SHA" --title "$TITLE" \
+            --notes "Version $VERSION, commit ${SHA:0:7}. Unsigned debug build for testing: on Android, open the .apk and allow installs from your browser when asked."
+          echo "apk_url=https://github.com/${{ github.repository }}/releases/download/$LABEL/$APK" >> "$GITHUB_OUTPUT"
       - uses: actions/upload-artifact@v4
         with:
           name: above-ground-android-debug
@@ -51,3 +81,38 @@ jobs:
         with:
           name: above-ground-ios-simulator
           path: AboveGround-simulator.zip
+
+  # One comment per pull request with every way to try the change, updated on each push.
+  preview-comment:
+    if: github.event_name == 'pull_request'
+    needs: [android, ios]
+    runs-on: ubuntu-latest
+    steps:
+      - name: Post or update the preview comment
+        env:
+          GH_TOKEN: ${{ github.token }}
+          PR: ${{ github.event.number }}
+          APK: ${{ needs.android.outputs.apk_url }}
+          SHA: ${{ github.event.pull_request.head.sha }}
+          RUN: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+        run: |
+          QR="https://api.qrserver.com/v1/create-qr-code/?size=160x160&data=$(node -p 'encodeURIComponent(process.env.APK)')"
+          cat > body.md <<EOF
+          <!-- preview-builds -->
+          ### Try this change (commit ${SHA:0:7})
+
+          | | How |
+          | --- | --- |
+          | **Website** | https://deploy-preview-$PR--above-ground.netlify.app (ready when Netlify's check passes; sign in with Netlify) |
+          | **Android** | [Download the APK]($APK) on your phone, or scan:<br><img src="$QR" width="160" alt="QR code for the Android APK"> |
+          | **iPhone (Simulator on your Mac)** | \`npm run preview:ios -- $PR\` in the repo folder |
+
+          <sub>Unsigned test builds from [this run]($RUN). The Android build replaces any other Above Ground test build on the phone.</sub>
+          EOF
+          ID=$(gh api "repos/${{ github.repository }}/issues/$PR/comments" --paginate \
+            --jq '[.[] | select(.body | startswith("<!-- preview-builds -->"))][0].id // empty')
+          if [ -n "$ID" ]; then
+            gh api -X PATCH "repos/${{ github.repository }}/issues/comments/$ID" -F body=@body.md >/dev/null
+          else
+            gh api "repos/${{ github.repository }}/issues/$PR/comments" -F body=@body.md >/dev/null
+          fi
