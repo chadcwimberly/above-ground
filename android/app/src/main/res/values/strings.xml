@@ -1,0 +1,7 @@
+<?xml version='1.0' encoding='utf-8'?>
+<resources>
+    <string name="app_name">Above Ground</string>
+    <string name="title_activity_main">Above Ground</string>
+    <string name="package_name">app.aboveground</string>
+    <string name="custom_url_scheme">app.aboveground</string>
+</resources>

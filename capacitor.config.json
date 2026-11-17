@@ -1,0 +1,13 @@
+{
+  "appId": "app.aboveground",
+  "appName": "Above Ground",
+  "webDir": "dist",
+  "backgroundColor": "#d8c6b2",
+  "plugins": {
+    "SplashScreen": {
+      "launchAutoHide": false,
+      "backgroundColor": "#d8c6b2",
+      "showSpinner": false
+    }
+  }
+}

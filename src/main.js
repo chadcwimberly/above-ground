@@ -1,115 +1,16 @@
-<!doctype html>
-<html lang="en" data-palette="hearth" data-font="lora">
-<head>
-<meta charset="utf-8">
-<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
-<meta name="theme-color" content="#d8c6b2">
-<link rel="manifest" href="manifest.webmanifest">
-<link rel="icon" href="icon.svg">
-<title>Ground</title>
-<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Alegreya+Sans:wght@400;500&family=Lora:wght@400;500&family=Source+Sans+3:wght@400;500&display=swap">
-<style>
-/* Themes (saved as "palette"): Hearth (default, warm browns), Moss, Tide, Pine (bright), Dusk (dark) */
-:root{--bg:#d8c6b2;--surface:#e5d7c6;--ink:#3a2b21;--mute:#5f4a39;--accent:#6f4a33;--on:#f6ece1;--font:'Lora',Georgia,serif}
-[data-palette=moss]{--bg:#cfd6c8;--surface:#dde3d6;--ink:#2b3328;--mute:#4f5d4c;--accent:#4f6b50;--on:#f4f7f1}
-[data-palette=tide]{--bg:#cdd8de;--surface:#dbe4e9;--ink:#23323b;--mute:#46596a;--accent:#3f6477;--on:#f2f7fa}
-[data-palette=pine]{--bg:#1f2a27;--surface:#2a3733;--ink:#dfe8e3;--mute:#9bb0a6;--accent:#8fb8a3;--on:#1b2421}
-[data-palette=dusk]{--bg:#2b2830;--surface:#37333d;--ink:#e6e1ea;--mute:#a39cac;--accent:#b9a7c9;--on:#25222b}
-[data-font=source]{--font:'Source Sans 3',system-ui,sans-serif}
-[data-font=alegreya]{--font:'Alegreya Sans',system-ui,sans-serif}
+// Above Ground app. Built by Vite; runs as the website and inside the iOS/Android apps (see platform.js).
+import '@fontsource/lora/400.css';
+import '@fontsource/lora/500.css';
+import '@fontsource/alegreya-sans/400.css';
+import '@fontsource/alegreya-sans/500.css';
+import '@fontsource/source-sans-3/400.css';
+import '@fontsource/source-sans-3/500.css';
+import { createClient } from '@supabase/supabase-js';
+import { isNative, restoreSaved, mirror, authStorage, syncSystemBars, appReady, onBackButton } from './platform.js';
 
-*{box-sizing:border-box}
-html,body{height:100%;margin:0}
-body{background:var(--bg);color:var(--ink);font:400 1.125rem/1.55 var(--font)}
-button,input{font:inherit;color:inherit}
-button{cursor:pointer}
-:focus-visible{outline:3px solid var(--accent);outline-offset:3px}
+// In the native apps, bring back saved settings, content and the event queue before anything reads them.
+await restoreSaved();
 
-#app{display:flex;flex-direction:column;height:100dvh;max-width:32rem;margin:0 auto;
-  padding:env(safe-area-inset-top) env(safe-area-inset-right) env(safe-area-inset-bottom) env(safe-area-inset-left)}
-header{position:relative;z-index:1;display:flex;justify-content:space-between;padding:.75rem 1rem}
-.icon,.tool{display:grid;place-items:center;width:2.75rem;height:2.75rem;border:0;border-radius:50%;background:transparent}
-.tool{width:3.25rem;height:3.25rem;background:var(--surface)}
-.tool[aria-pressed=true]{background:var(--accent);color:var(--on)}
-svg{width:1.4rem;height:1.4rem}
-.flip svg{transform:scaleY(-1)}
-
-main{flex:1;overflow:auto;padding:1rem 1.75rem;display:flex;flex-direction:column;isolation:isolate}
-main.center{justify-content:center;text-align:center}
-main.has-blob{overflow:visible}
-.screen{animation:fade .35s ease}
-h1{font-size:1.8rem;font-weight:500;line-height:1.2;margin:0 0 .75rem}
-ol{padding-left:1.3rem;margin:.5rem 0}
-li{margin:.7rem 0;padding-left:.2rem}
-input{width:100%;padding:.8rem 1rem;margin-bottom:.6rem;border-radius:.9rem;background:var(--surface);
-  border:1px solid color-mix(in srgb,var(--ink) 25%,transparent)}
-.aff,.msg{font-size:2rem;line-height:1.3}
-.lead{font-size:1.15rem;color:var(--mute);margin:0 0 1.25rem}
-.aff p{margin:.4rem 0}
-.aff .how{font-size:1.15rem;line-height:1.5;color:var(--mute);margin-top:1rem}
-.msg{font-size:1.75rem;margin:0}
-
-/* Affirmation: text sits on a floating, breathing, hand-drawn circle centered on the screen */
-.screen.said-on-blob{position:relative;--d:max(16rem,min(calc(100vw - 1.5rem),28rem,calc(100dvh - 12rem)))}
-.said{position:relative;z-index:1;max-width:calc(var(--d) * .64);margin:0 auto}
-.said .aff{font-size:clamp(1.5rem,calc(var(--d) * .068),2rem)}
-.said .aff .how{font-size:clamp(1rem,calc(var(--d) * .04),1.15rem)}
-.blob{position:absolute;z-index:0;left:50%;top:50%;width:var(--d);height:var(--d);margin:calc(var(--d) / -2) 0 0 calc(var(--d) / -2);pointer-events:none}
-.blob .float{width:100%;height:100%;animation:float 14s ease-in-out infinite}
-.blob .breathe{width:100%;height:100%;animation:breathe 9s ease-in-out infinite}
-.blob svg{display:block;width:100%;height:100%;overflow:visible}
-.blob path{fill:var(--surface)}
-.blob .halo{opacity:.5;transform-origin:center;animation:spin 70s linear infinite reverse}
-.blob .core{transform-origin:center;animation:spin 90s linear infinite}
-
-/* Welcome: greeting + three "what do you need" choices */
-.welcome h1{font-size:2rem;margin:0 0 2rem}
-.needs{display:flex;flex-direction:column;gap:.9rem;text-align:left}
-.need{width:100%;min-height:4rem;padding:.9rem 1.4rem;border:0;border-radius:1.5rem;background:var(--surface);font-size:1.25rem;font-weight:500}
-.need:active{background:var(--accent);color:var(--on)}
-main[aria-busy=true]{opacity:.6;transition:opacity .2s}
-
-footer{position:relative;z-index:1;padding:.5rem 1.5rem 1.25rem}
-footer:empty{padding:0}
-.tools{display:flex;justify-content:center;gap:.9rem;margin-bottom:1rem}
-.cta{width:100%;min-height:4.25rem;border:0;border-radius:1.5rem;background:var(--accent);color:var(--on);font-size:1.4rem;font-weight:500}
-.soft{margin-top:.75rem;padding:.7rem 1.2rem;border-radius:1rem;background:transparent;border:1px solid var(--accent)}
-footer .soft{display:block;margin:.75rem auto 0}
-
-dialog{margin:auto auto 0;width:100%;max-width:32rem;border:0;border-radius:1.5rem 1.5rem 0 0;padding:0;background:var(--surface);color:var(--ink)}
-dialog::backdrop{background:rgb(0 0 0/.35)}
-.body{padding:1.5rem 1.5rem calc(1.5rem + env(safe-area-inset-bottom))}
-h2{font-size:1.1rem;font-weight:500;margin:1rem 0 .5rem;color:var(--mute)}
-.opts{display:flex;flex-wrap:wrap;gap:.6rem}
-.opt{--pl:.6rem;display:flex;align-items:center;gap:.55rem;padding:.55rem 1rem .55rem var(--pl);border-radius:2rem;background:transparent;
-  border:1px solid color-mix(in srgb,var(--ink) 25%,transparent)}
-.opt.text{--pl:1rem} /* no swatch: equal padding left and right */
-.opt[aria-pressed=true]{border:2px solid var(--accent);padding:calc(.55rem - 1px) calc(1rem - 1px) calc(.55rem - 1px) calc(var(--pl) - 1px)}
-/* Swatch: fixed square box so it stays a true circle; the ring is drawn on top of the colors so they can't clip it */
-.sw{flex:none;box-sizing:border-box;width:1.5rem;height:1.5rem;border-radius:50%;
-  box-shadow:inset 0 0 0 1px color-mix(in srgb,var(--ink) 35%,transparent)}
-.small{font-size:.9rem;color:var(--mute);margin:1rem 0 .75rem}
-
-@keyframes fade{from{opacity:0}to{opacity:1}}
-@keyframes breathe{50%{transform:scale(1.06)}}
-@keyframes float{25%{transform:translate(.4rem,-.5rem)}50%{transform:translate(-.2rem,-.9rem)}75%{transform:translate(-.5rem,-.2rem)}}
-@keyframes spin{to{transform:rotate(360deg)}}
-@media (prefers-reduced-motion:reduce){*{animation:none!important;transition:none!important}}
-</style>
-</head>
-<body>
-<div id="app">
-  <header>
-    <button class="icon" id="back" data-a="back" aria-label="Back"></button>
-    <button class="icon" id="gear" data-a="settings" aria-label="Settings"></button>
-  </header>
-  <main id="main" aria-live="polite"></main>
-  <footer id="foot"></footer>
-</div>
-<dialog id="settings" aria-label="Settings"><div class="body"></div></dialog>
-
-<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/dist/umd/supabase.min.js"></script>
-<script>
 // ---- Config: Supabase project URL and anon (public) key.
 // Supabase is the only source of content (exercises, affirmations, completion messages, greetings).
 // The app keeps a copy of the last content it loaded so it still works offline; it never ships its own.
@@ -119,7 +20,7 @@ const CACHE_KEY = 'content-v2';
 // ---- Helpers
 const $ = s => document.querySelector(s);
 const esc = s => String(s ?? '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
-const store = { get: (k, d) => { try { return JSON.parse(localStorage.getItem(k)) ?? d } catch { return d } }, set: (k, v) => { try { localStorage.setItem(k, JSON.stringify(v)) } catch {} } };
+const store = { get: (k, d) => { try { return JSON.parse(localStorage.getItem(k)) ?? d } catch { return d } }, set: (k, v) => { try { const s = JSON.stringify(v); localStorage.setItem(k, s); mirror(k, s) } catch {} } };
 const rnd = (a, notId) => { const p = a.length > 1 ? a.filter(x => x.id !== notId) : a; return p[Math.floor(Math.random() * p.length)] };
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 const ICON = {
@@ -293,7 +194,9 @@ function applyPrefs() {
   const d = document.documentElement;
   if (!P.some(p => p[0] === prefs.palette)) prefs.palette = 'hearth'; // e.g. a saved palette that no longer exists
   d.dataset.palette = prefs.palette; d.dataset.font = prefs.font; store.set('prefs', prefs);
-  $('meta[name=theme-color]').content = getComputedStyle(d).getPropertyValue('--bg').trim();
+  const bg = getComputedStyle(d).getPropertyValue('--bg').trim();
+  $('meta[name=theme-color]').content = bg;
+  syncSystemBars(bg);
 }
 function buildSettings() {
   $('#settings .body').innerHTML = `<h2>Theme</h2><div class="opts">${P.map(p =>
@@ -353,7 +256,7 @@ async function loadContent() {
   if (x.data?.length && a.data?.length && m.data?.length) {
     data = { exercises: x.data, affirmations: a.data, messages: m.data, greetings: g.data || [] };
     store.set(CACHE_KEY, data);
-    try { localStorage.removeItem('content') } catch {} // copy saved by the previous app version
+    try { localStorage.removeItem('content'); mirror('content', null) } catch {} // copy saved by the previous app version
   }
 }
 // First launch waits longer (there is nothing saved to show); later launches show saved content after 4 seconds.
@@ -388,8 +291,9 @@ async function init() {
   $('#back').innerHTML = svg('back'); $('#gear').innerHTML = svg('gear');
   applyPrefs();
   loadVersion();
-  if (CFG.url && window.supabase) {
-    sb = supabase.createClient(CFG.url, CFG.key);
+  if (CFG.url) {
+    // Web: default storage (localStorage), so existing devices keep their sign-in. Native: Preferences.
+    sb = createClient(CFG.url, CFG.key, { auth: { storage: authStorage, detectSessionInUrl: !isNative } });
     await loadWithWait();
     ready = registerDevice().catch(e => console.warn('Device sign-in failed, events will not be recorded', e));
     // Offline: show the name saved for this device last time.
@@ -400,9 +304,15 @@ async function init() {
     }).catch(() => {});
   }
   go('welcome');
+  appReady();
 }
+// Android back button: close Settings, else step back a screen, else leave the app.
+onBackButton(() => {
+  if ($('#settings').open) { $('#settings').close(); return true }
+  if ($('#back').style.visibility === 'visible') { $('#back').click(); return true }
+  return false;
+});
 init();
-if ('serviceWorker' in navigator) navigator.serviceWorker.register('sw.js');
-</script>
-</body>
-</html>
+// The service worker gives the website offline support. The native apps already ship their files inside the app,
+// and iOS app web views don't run service workers.
+if (!isNative && 'serviceWorker' in navigator) navigator.serviceWorker.register('sw.js');
