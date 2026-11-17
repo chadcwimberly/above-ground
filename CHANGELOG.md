@@ -4,6 +4,10 @@ All notable changes to Above Ground. Versions follow [Semantic Versioning](https
 MAJOR for changes that break saved data or flows, MINOR for new features, PATCH for fixes.
 The exact time each version went live is shown in the app under Settings → Last Updated.
 
+## 1.3.1 — 2026-11-17
+- Events from the end of a session (completing an exercise, the completion message) are sent right away
+  instead of on the next launch; queued events are also sent when you switch away from or close the app
+
 ## 1.3.0 — 2026-11-17
 - iOS and Android apps: the same app now builds as native apps with Capacitor (app ID `app.aboveground`),
   with icons, splash screen, status bar colors that follow the theme, and the Android back button
