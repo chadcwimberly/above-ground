@@ -8,6 +8,10 @@
       "launchAutoHide": false,
       "backgroundColor": "#d8c6b2",
       "showSpinner": false
+    },
+    "LocalNotifications": {
+      "smallIcon": "ic_stat_notify",
+      "iconColor": "#6f4a33"
     }
   }
 }

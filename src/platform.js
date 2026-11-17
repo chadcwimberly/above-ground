@@ -6,6 +6,9 @@ import { Capacitor, SystemBars, SystemBarsStyle } from '@capacitor/core';
 import { Preferences } from '@capacitor/preferences';
 import { SplashScreen } from '@capacitor/splash-screen';
 import { App } from '@capacitor/app';
+import { Haptics, ImpactStyle } from '@capacitor/haptics';
+import { LocalNotifications } from '@capacitor/local-notifications';
+import { TextZoom } from '@capacitor/text-zoom';
 
 export const isNative = Capacitor.isNativePlatform();
 export const platform = Capacitor.getPlatform(); // 'web' | 'ios' | 'android'
@@ -61,4 +64,54 @@ export function onBackButton(handler) {
 // The native app is going to the background (also fires visibilitychange in most web views; this is the sure one).
 export function onAppPause(handler) {
   if (isNative) App.addListener('pause', handler);
+}
+
+// ---- Haptics: a light tap (native), or a short vibration where the browser supports it (Android web).
+export const canVibrate = isNative || ('vibrate' in navigator && matchMedia('(pointer:coarse)').matches); // phones only
+export function tap(strength = 'light') {
+  if (isNative) return Haptics.impact({ style: strength === 'medium' ? ImpactStyle.Medium : ImpactStyle.Light }).catch(() => {});
+  try { navigator.vibrate?.(strength === 'medium' ? 25 : 12) } catch {}
+}
+
+// ---- Text size: the apps follow the phone's text-size setting (Dynamic Type / font scale).
+// The website already follows the browser's own text size and zoom.
+export async function followSystemTextSize() {
+  if (!isNative) return;
+  try { const { value } = await TextZoom.getPreferred(); await TextZoom.set({ value }) } catch {}
+}
+
+// ---- Gentle reminders (apps only): one weekly local notification per chosen day. Nothing goes through a server.
+// days: 1 = Sunday ... 7 = Saturday. time: 'HH:MM'. Returns false if notifications aren't allowed.
+export const canRemind = isNative;
+const REMINDER_IDS = [101, 102, 103, 104, 105, 106, 107];
+export async function scheduleReminders({ enabled, time, days }, messages, ask = false) {
+  if (!isNative) return false;
+  try {
+    await LocalNotifications.cancel({ notifications: REMINDER_IDS.map(id => ({ id })) });
+    if (!enabled || !days?.length) return true;
+    let { display } = await LocalNotifications.checkPermissions();
+    if (display !== 'granted' && ask) ({ display } = await LocalNotifications.requestPermissions());
+    if (display !== 'granted') return false;
+    if (!messages?.length) return true; // reminder copy comes from Supabase; scheduled once it has loaded
+    const [hour, minute] = (time || '20:00').split(':').map(Number);
+    const pool = messages;
+    await LocalNotifications.schedule({
+      notifications: days.map(d => ({
+        id: 100 + d,
+        title: 'Above Ground',
+        body: pool[Math.floor(Math.random() * pool.length)].body,
+        schedule: { on: { weekday: d, hour, minute }, allowWhileIdle: true }
+      }))
+    });
+    return true;
+  } catch (e) { console.warn('Could not schedule reminders', e); return false }
+}
+
+// ---- Where the person probably is, for choosing a crisis line: region from the language setting, e.g. en-US -> US.
+export function guessCountry() {
+  for (const tag of [...(navigator.languages || []), navigator.language, Intl.DateTimeFormat().resolvedOptions().locale]) {
+    const m = /[-_]([A-Za-z]{2})\b/.exec(tag || '');
+    if (m) return m[1].toUpperCase();
+  }
+  return '';
 }

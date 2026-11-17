@@ -4,6 +4,20 @@ All notable changes to Above Ground. Versions follow [Semantic Versioning](https
 MAJOR for changes that break saved data or flows, MINOR for new features, PATCH for fixes.
 The exact time each version went live is shown in the app under Settings → Last Updated.
 
+## 1.4.0 — 2026-11-17
+- "Need more help?" is always in the header (and in Settings): the crisis line for your country with call,
+  text and chat buttons, your local emergency number, and a country picker. Lines come from `crisis_resources`
+- A note that Above Ground supports everyday moments and isn't a replacement for professional care
+- Breathing guide: breathing exercises show a circle that grows and shrinks with each breath, with gentle taps
+  on phones (Settings → Vibration). Paced by the `pacing` steps stored with each exercise
+- "Why this works": exercises can show a plain-language research summary and its sources (`research_summary`, `sources`)
+- Recorded guides: exercises with an `audio_url` get a play button
+- Gentle reminders in the iOS and Android apps: off by default; pick a time and days in Settings.
+  Local notifications only, worded from `reminder_messages`
+- Starts instantly from saved content and refreshes in the background (first launch still waits for content)
+- Accessibility: the apps follow the phone's text size; the timer announces its start, 10 seconds left and the end
+  to screen readers; the breathing circle is hidden when reduced motion is on
+
 ## 1.3.1 — 2026-11-17
 - Events from the end of a session (completing an exercise, the completion message) are sent right away
   instead of on the next launch; queued events are also sent when you switch away from or close the app
