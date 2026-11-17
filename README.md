@@ -27,6 +27,9 @@ pull request and attaches an installable Android debug APK and an iOS Simulator 
 - Android: `FeelingsWidget.java` + `res/layout/feelings_widget.xml`, `res/xml/shortcuts.xml` (launcher shortcuts and
   App Actions), `HealthPlugin.java` (Health Connect, Android 16+, registered in `MainActivity.java`).
 
+## How we work
+Processes and recurring tasks: [docs/processes.md](docs/processes.md).
+
 ## Previewing changes before they go live
 Changes go through pull requests. Each pull request gets a comment (updated on every push) with:
 - **Website:** the Netlify deploy preview, `https://deploy-preview-<N>--above-ground.netlify.app` (Netlify sign-in).
