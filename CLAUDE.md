@@ -1,5 +1,9 @@
 # Above Ground — working notes for Claude
 
+**Start here:** step-by-step processes (shipping a change, content, native projects, previews, DNS/email,
+sandbox workarounds, open work) are in `docs/processes.md`. Follow them, and update that file in the same
+pull request whenever a process changes or an open-work item closes.
+
 ## Releases (owner's standing instruction)
 Claude owns versioning, building and scripting. The owner never bumps versions manually.
 - Every commit pushed to `main` that changes the app (`index.html`, `src/`, `public/`, `scripts/`, `ios/`, `android/`,
