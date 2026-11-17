@@ -4,6 +4,16 @@ All notable changes to Above Ground. Versions follow [Semantic Versioning](https
 MAJOR for changes that break saved data or flows, MINOR for new features, PATCH for fixes.
 The exact time each version went live is shown in the app under Settings → Last Updated.
 
+## 1.8.0 — 2026-11-17
+- Tip jar. Settings → Support Above Ground explains what running the app costs and offers $2, $5 and $10 tips:
+  in-app purchases in the iOS and Android apps (prices shown in the person's currency), payment links on the
+  website. Tips unlock nothing.
+- After a completed session, a gentle card offers a tip: first at the 3rd completion, then at most once every 10
+  completions and 30 days; never in a session where "Need more help?" was opened; "Not now" and "Don't show
+  again" are saved to the synced profile.
+- Database: `tip_options` (amounts, store product IDs, web links) and `app_copy` (support and thank-you text),
+  migration `20261117224341_tip_jar`. Tips stay hidden until the store products or web links exist.
+
 ## 1.7.0 — 2026-11-17
 - Sync across devices, with no account: Settings → Show my sync code gives 12 words and a QR code; another
   device links with Settings → I have a sync code (type, paste or scan). Linked devices share settings (theme,

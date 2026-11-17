@@ -11,6 +11,7 @@ import { LocalNotifications } from '@capacitor/local-notifications';
 import { TextZoom } from '@capacitor/text-zoom';
 import { Filesystem, Directory, Encoding } from '@capacitor/filesystem';
 import { Share } from '@capacitor/share';
+import { NativePurchases, PURCHASE_TYPE } from '@capgo/native-purchases';
 
 export const isNative = Capacitor.isNativePlatform();
 export const platform = Capacitor.getPlatform(); // 'web' | 'ios' | 'android'
@@ -172,4 +173,21 @@ export async function requestHealth() {
 export async function logMindful(start, end) {
   if (!isNative || end - start < 10000) return; // ignore very short sessions
   try { await Health.logMindfulSession({ start, end }) } catch (e) { console.warn('Could not save mindful minutes', e) }
+}
+
+// ---- Tips: consumable in-app purchases in the apps (App Store / Google Play). Returns the store's products,
+// with prices in the person's own currency, or [] when billing isn't available.
+export async function tipProducts(ids) {
+  if (!isNative || !ids.length) return [];
+  try {
+    if (!(await NativePurchases.isBillingSupported()).isBillingSupported) return [];
+    return (await NativePurchases.getProducts({ productIdentifiers: ids, productType: PURCHASE_TYPE.INAPP })).products || [];
+  } catch (e) { console.warn('Tip products unavailable', e); return [] }
+}
+// Resolves true when paid, false when the person cancelled; throws on other errors.
+export async function buyTip(productId) {
+  try {
+    await NativePurchases.purchaseProduct({ productIdentifier: productId, productType: PURCHASE_TYPE.INAPP, quantity: 1, isConsumable: true });
+    return true;
+  } catch (e) { if (/cancel/i.test(String(e?.message || e?.code || e))) return false; throw e }
 }
