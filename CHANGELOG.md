@@ -4,6 +4,13 @@ All notable changes to Above Ground. Versions follow [Semantic Versioning](https
 MAJOR for changes that break saved data or flows, MINOR for new features, PATCH for fixes.
 The exact time each version went live is shown in the app under Settings → Last Updated.
 
+## 1.9.0 — 2026-11-17
+- Smooth motion throughout: screens slide forward and back (View Transitions where supported, a gentle rise
+  elsewhere) while the header stays still; Settings and "Need more help?" slide up as sheets and back down;
+  Settings pages slide in from the side they lead to; buttons give a little when pressed; votes pop; the welcome
+  choices, help lines and tip card ease in; "Why this works" opens smoothly; theme changes fade.
+- Everything turns off when the system's "reduce motion" setting is on.
+
 ## 1.8.0 — 2026-11-17
 - Tip jar. Settings → Support Above Ground explains what running the app costs and offers $2, $5 and $10 tips:
   in-app purchases in the iOS and Android apps (prices shown in the person's currency), payment links on the

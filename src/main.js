@@ -223,8 +223,20 @@ async function go(k, fresh) {
     finally { busy = false; $('#main').removeAttribute('aria-busy') }
   }
   if (k === 'welcome') S.greeting = pickGreeting();
-  S.screen = k;
-  render();
+  const from = S.screen;
+  swap(() => { S.screen = k; render() }, from, k);
+}
+// Screen changes slide forward or back (or fade for a new pick on the same screen) using View Transitions where
+// available. Skipped for the very first screen and when the system asks for reduced motion.
+const reduceMotion = matchMedia('(prefers-reduced-motion: reduce)');
+const canTransition = () => !!document.startViewTransition && !reduceMotion.matches;
+if (canTransition()) document.documentElement.classList.add('vt');
+reduceMotion.addEventListener?.('change', () => document.documentElement.classList.toggle('vt', canTransition()));
+const ORDER = { welcome: 0, exercise: 1, affirmation: 2, message: 3 };
+function swap(update, from, to) {
+  if (!canTransition() || !$('#main').children.length || document.hidden) return update();
+  document.documentElement.dataset.dir = from === to ? 'same' : from === 'message' && to === 'welcome' ? 'same' : ORDER[to] < ORDER[from] ? 'back' : 'fwd';
+  document.startViewTransition(update);
 }
 function vote(k, it, v) {
   const key = k + it.id, nv = S.votes[key] === v ? 0 : v;
@@ -335,6 +347,11 @@ function openSettings(view = 'main', words = '') {
   if (!$('#settings').open) $('#settings').showModal();
 }
 $('#settings').addEventListener('close', () => { sv = 'main'; stopScan() });
+// Settings pages slide in from the side they lead to.
+function slideBody(dir) {
+  const b = $('#settings .body'); $('#settings').scrollTop = 0;
+  b.classList.remove('enter-fwd', 'enter-back'); void b.offsetWidth; b.classList.add('enter-' + dir);
+}
 const sub = title => `<button class="link back-link" data-v="main">‹ Settings</button><h1 class="sub-title" tabindex="-1">${esc(title)}</h1>`;
 const setBody = (html, focus = true) => { const b = $('#settings .body'); b.innerHTML = html; if (focus) b.querySelector('.sub-title')?.focus() };
 const offlineNote = title => setBody(sub(title) + `<p>This needs an internet connection. Please try again when you're online.</p>`);
@@ -453,7 +470,7 @@ function privacyView(note = '', confirm = false) {
 // Sync, join and privacy actions.
 $('#settings').addEventListener('click', async e => {
   const v = e.target.closest('[data-v]'), b = e.target.closest('[data-s]');
-  if (v) { stopScan(); sv = v.dataset.v; if (sv === 'join') joinView(); else buildSettings(); return }
+  if (v) { stopScan(); sv = v.dataset.v; if (sv === 'join') joinView(); else buildSettings(); return slideBody(sv === 'main' ? 'back' : 'fwd') }
   if (!b) return;
   const s = b.dataset.s;
   try {
