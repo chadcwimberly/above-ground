@@ -6,7 +6,7 @@ import '@fontsource/alegreya-sans/500.css';
 import '@fontsource/source-sans-3/400.css';
 import '@fontsource/source-sans-3/500.css';
 import { createClient } from '@supabase/supabase-js';
-import { isNative, restoreSaved, mirror, authStorage, syncSystemBars, appReady, onBackButton } from './platform.js';
+import { isNative, restoreSaved, mirror, authStorage, syncSystemBars, appReady, onBackButton, onAppPause } from './platform.js';
 
 // In the native apps, bring back saved settings, content and the event queue before anything reads them.
 await restoreSaved();
@@ -230,17 +230,24 @@ function log(type, item, kind, meta = {}) {
   store.set('q', q); flush();
 }
 let flushing = null;
+// Sends every queued event. Events logged while a send is in flight are sent right after it finishes,
+// so a session's last events (complete, the completion message) arrive during that session, not next launch.
 function flush() {
-  if (flushing) return flushing;
+  if (flushing) return flushing.then(() => store.get('q', []).length ? flush() : undefined);
   if (!sb || !navigator.onLine) return Promise.resolve();
   const q = store.get('q', []); if (!q.length) return Promise.resolve();
   flushing = (async () => {
-    try { const { error } = await sb.from('events').insert(q); if (!error) store.set('q', store.get('q', []).slice(q.length)) } catch {}
+    let sent = false;
+    try { const { error } = await sb.from('events').insert(q); if (!error) { store.set('q', store.get('q', []).slice(q.length)); sent = true } } catch {}
     flushing = null;
+    if (sent && store.get('q', []).length) await flush(); // anything logged while this batch was sending
   })();
   return flushing;
 }
 addEventListener('online', flush);
+// Leaving the app or switching away: send what's queued before the OS may suspend us.
+document.addEventListener('visibilitychange', () => { if (document.visibilityState === 'hidden') flush() });
+onAppPause(flush);
 
 // ---- Startup
 async function loadContent() {

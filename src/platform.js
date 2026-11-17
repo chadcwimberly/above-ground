@@ -57,3 +57,8 @@ export function onBackButton(handler) {
   if (platform !== 'android') return;
   App.addListener('backButton', () => { if (!handler()) App.minimizeApp() });
 }
+
+// The native app is going to the background (also fires visibilitychange in most web views; this is the sure one).
+export function onAppPause(handler) {
+  if (isNative) App.addListener('pause', handler);
+}
