@@ -335,7 +335,7 @@ function buildHelp() {
     ${c.phone ? `<a class="cta" href="tel:${esc(c.phone)}">Call ${esc(fmtPhone(c.phone))}</a>` : ''}
     ${c.sms ? `<a class="soft" href="sms:${esc(c.sms)}${c.sms_body ? `?&body=${encodeURIComponent(c.sms_body)}` : ''}">Text ${esc(fmtPhone(c.sms))}</a>` : ''}
     ${c.url ? `<a class="soft" href="${esc(c.url)}" target="_blank" rel="noopener">${c.phone ? 'Chat or learn more' : 'Find a helpline'}</a>` : ''}</div></div>`;
-  $('#help .body').innerHTML = `<h1 class="help-title">You don't have to handle this alone</h1>
+  $('#help .body').innerHTML = `<h1 class="help-title" tabindex="-1" autofocus>You don't have to handle this alone</h1>
     <p class="lead">Trained people are ready to listen, any time. It's free and confidential.</p>
     ${list.map(card).join('') || '<p>If you are in danger, call your local emergency number.</p>'}
     <p class="small">${emergency ? `If you're in immediate danger, call ${esc(emergency)}.` : 'If you are in immediate danger, call your local emergency number.'}</p>
