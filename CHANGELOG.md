@@ -4,6 +4,10 @@ All notable changes to Above Ground. Versions follow [Semantic Versioning](https
 MAJOR for changes that break saved data or flows, MINOR for new features, PATCH for fixes.
 The exact time each version went live is shown in the app under Settings → Last Updated.
 
+## 1.6.0 — 2026-11-17
+- Website: when a newer version goes live, a small "A new version of Above Ground is ready" bar offers
+  Refresh or Later. It never reloads on its own, so nobody loses their place mid-exercise.
+
 ## 1.5.2 — 2026-11-17
 - Developer previews: every pull request gets a comment with its website preview, an installable Android APK
   (with QR code) and a one-command iPhone Simulator preview (`npm run preview:ios -- <N>`); `main` publishes

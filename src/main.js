@@ -439,8 +439,32 @@ async function registerDevice() {
 async function loadVersion() {
   try {
     const r = await fetch('version.json', { cache: 'no-store' });
-    if (r.ok) { version = await r.json(); store.set('version', version) }
+    if (r.ok) { version = await r.json(); store.set('version', version); offerUpdate(version) }
   } catch {}
+}
+// Website only: when a newer release is live than the one running, offer a refresh. The app never reloads by
+// itself, so nobody loses their place mid-exercise. Checks when the page comes back into view, comes back online,
+// and every 15 minutes. The native apps update through the app stores.
+let dismissed = null;
+function offerUpdate(v) {
+  if (isNative || !v?.version) return;
+  const live = `${v.version}-${v.commit}`;
+  if (live === __BUILD__ || live === dismissed || !$('#update').hidden) return;
+  $('#update').hidden = false;
+  announce('A new version of Above Ground is ready. Refresh to update.');
+}
+function checkForUpdate() { if (!isNative && navigator.onLine && !document.hidden) loadVersion() }
+if (!isNative) {
+  document.addEventListener('visibilitychange', checkForUpdate);
+  addEventListener('online', checkForUpdate);
+  setInterval(checkForUpdate, 15 * 60 * 1000);
+  $('#update').addEventListener('click', e => {
+    const b = e.target.closest('[data-update]'); if (!b) return;
+    if (b.dataset.update === 'later') { dismissed = `${version.version}-${version.commit}`; $('#update').hidden = true; return }
+    b.disabled = true; b.textContent = 'Updating…';
+    flush();                                  // send any queued events now; anything unsent stays queued
+    setTimeout(() => location.reload(), 300);
+  });
 }
 async function init() {
   $('#back').innerHTML = svg('back'); $('#gear').innerHTML = svg('gear');
