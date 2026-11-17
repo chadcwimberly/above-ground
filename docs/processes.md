@@ -61,6 +61,16 @@ Docs-only or repo-housekeeping changes skip steps 3–5 and need no version bump
 - Sync words live only on devices (`syncWords`); the server keeps a SHA-256 hash. `src/sync.js` has the word
   list, hashing, QR and scanner.
 
+## 2b. Tip jar
+
+- `tip_options` rows: iOS/Android name the consumable product IDs `app.aboveground.tip.small|medium|large`;
+  web rows need a `url` (a Stripe Payment Link or similar). A row with no url (web) or no store product (apps)
+  stays hidden. Never link the apps to web payments: Apple and Google require in-app purchase for tips there.
+- Copy (`support_intro`, `support_costs` as "Item: cost" lines, `tip_card`, `tip_thanks`, `tips_unavailable`)
+  lives in `app_copy`. Update `support_costs` when running costs change.
+- Card rules are in `tipCardDue()` in `src/main.js`. Purchases use `@capgo/native-purchases` (StoreKit 2 /
+  Play Billing, no receipt server; tips are consumed right away).
+
 ## 3. Native projects (iOS / Android)
 
 - Capacitor 8, app ID `app.aboveground`. iOS uses Swift Package Manager. Android uses Java 21.
@@ -139,6 +149,6 @@ an optional later step. Build numbers come from `scripts/sync-native-version.mjs
 - [x] "Why this works" summaries approved and loaded for all 56 exercises (2026-11-17).
 - [ ] Privacy and support pages for aboveground.app (needs Chad's contact email).
 - [x] Sync code (12 words + QR) and delete-my-data (1.7.0).
-- [ ] Tip jar ($2/$5/$10, shown after 3 completions + Settings screen).
+- [x] Tip jar (1.8.0). Goes live per platform once the store products / web payment links exist (see below).
 - [ ] Signed release workflow → TestFlight / Play internal testing (needs developer accounts).
 - [ ] Audio guides (someone Chad knows may record them; `exercises.audio_url` is ready).

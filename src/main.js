@@ -8,7 +8,7 @@ import '@fontsource/source-sans-3/500.css';
 import { createClient } from '@supabase/supabase-js';
 import { isNative, platform, restoreSaved, mirror, authStorage, syncSystemBars, appReady, onBackButton, onAppPause,
   canVibrate, tap, followSystemTextSize, canRemind, scheduleReminders, guessCountry,
-  onDeepLink, healthAvailable, requestHealth, logMindful, clearSaved, saveFile, canScan } from './platform.js';
+  onDeepLink, healthAvailable, requestHealth, logMindful, clearSaved, saveFile, canScan, tipProducts, buyTip } from './platform.js';
 import { newCode, normalize, isValid, hashCode, syncLink, wordsFromLink, qrSvg, scanQR, wordlist } from './sync.js';
 
 // In the native apps, bring back saved settings, content and the event queue before anything reads them.
@@ -181,7 +181,9 @@ function render() {
   const vote = v => S.votes[k + it.id] === v;
   if (k === 'exercise') main.innerHTML = `<div class="screen"><h1>${esc(it.title)}</h1>${(R[it.kind] || R.steps)(it.body || {})}${extras(it)}</div>`;
   if (k === 'affirmation') main.innerHTML = `<div class="screen said-on-blob">${BLOB}<div class="said"><p class="lead">Repeat after me:</p><div class="aff">${it.body_html}</div></div></div>`;
-  if (k === 'message') main.innerHTML = `<div class="screen"><p class="msg">${esc(it.body)}</p></div>`;
+  if (k === 'message') main.innerHTML = `<div class="screen"><p class="msg">${esc(it.body)}</p>${S.showTip ? `<div class="tipcard">
+    <p>${esc(data.copy.tip_card)}</p><button class="soft" data-a="tip-open">Leave a tip</button>
+    <div class="tipcard-more"><button class="link" data-a="tip-later">Not now</button><button class="link" data-a="tip-never">Don't show again</button></div></div>` : ''}</div>`;
   if (k === 'message') {
     foot.innerHTML = `<button class="cta" data-a="restart">Restart</button>`;
   } else {
@@ -240,6 +242,8 @@ document.addEventListener('click', e => {
   if (a === 'pace') return b.dataset.on ? stopPacer() : startPacer(S.ex?.body?.pacing || {});
   if (a === 'audio') return toggleAudio(b);
   if (a === 'help') return openHelp();
+  if (a === 'tip-open') { S.showTip = false; $('.tipcard')?.remove(); return openSettings('support') }
+  if (a === 'tip-later' || a === 'tip-never') { if (a === 'tip-never') saveTipsState({ never: true }); S.showTip = false; $('.tipcard')?.remove(); return $('[data-a=restart]')?.focus() }
   if (busy) return;
   if (a === 'retry') { b.disabled = true; b.textContent = 'Trying…'; if (sb) loadWithWait().then(() => go('welcome')); else location.reload(); return }
   if (a === 'need') startCategory(b.dataset.c);
@@ -248,8 +252,12 @@ document.addEventListener('click', e => {
   if (a === 'next') { log('next', it, 'exercise'); go('affirmation', true) }
   if (a === 'back' && k === 'affirmation') { log('back', it, 'affirmation'); go('exercise', false) }
   if (a === 'back' && k === 'exercise') { log('back', it, 'exercise'); go('welcome') }
-  if (a === 'done') { log('complete', S.ex, 'exercise'); log('complete', S.af, 'affirmation'); if (prefs.health) logMindful(S.startedAt, Date.now()); go('message', true) }
-  if (a === 'restart') { log('restart', it, 'message'); S.votes = {}; go('welcome') }
+  if (a === 'done') {
+    store.set('completions', store.get('completions', 0) + 1); S.doneSinceProfile = (S.doneSinceProfile || 0) + 1;
+    S.showTip = tipCardDue();
+    if (S.showTip) saveTipsState({ shown_at: Date.now(), shown_count: completions() });
+    log('complete', S.ex, 'exercise'); log('complete', S.af, 'affirmation'); if (prefs.health) logMindful(S.startedAt, Date.now()); go('message', true) }
+  if (a === 'restart') { log('restart', it, 'message'); S.votes = {}; S.showTip = false; S.helpOpened = false; go('welcome') }
 });
 
 // Start a session in a category (welcome buttons, widgets, shortcuts). Mindful minutes count from here.
@@ -283,6 +291,7 @@ function buildSettings(note = '') {
   if (sv === 'sync') return syncView(note);
   if (sv === 'join') return joinView('', note);
   if (sv === 'privacy') return privacyView(note);
+  if (sv === 'support') return supportView(note);
   const r = prefs.reminders, online = !!(sb && deviceId);
   $('#settings .body').innerHTML = `<h2>Theme</h2><div class="opts">${P.map(p =>
     `<button class="opt" data-p="${p[0]}" aria-pressed="${prefs.palette === p[0]}"><span class="sw" style="background:linear-gradient(135deg,${p[2]} 50%,${p[3]} 50%)"></span>${p[1]}</button>`).join('')}</div>
@@ -300,6 +309,7 @@ function buildSettings(note = '') {
       ? ` This device is synced with ${profile.devices - 1} other device${profile.devices > 2 ? 's' : ''}.` : ''}</p>
     <div class="opts"><button class="opt text" data-v="sync" ${online ? '' : 'disabled'}>Show my sync code</button>
       <button class="opt text" data-v="join" ${online ? '' : 'disabled'}>I have a sync code</button></div>
+    ${data?.copy?.support_intro ? `<h2>Support Above Ground</h2><div class="opts"><button class="opt text" data-v="support">Leave a tip</button></div>` : ''}
     <h2>Privacy</h2><div class="opts"><button class="opt text" data-v="privacy" ${online ? '' : 'disabled'}>Download or delete my data</button></div>
     ${online ? '' : '<p class="small tight">Sync and privacy tools need an internet connection.</p>'}
     <p class="small">Above Ground offers support for everyday moments. It isn't a replacement for professional care.
@@ -497,6 +507,57 @@ $('#settings').addEventListener('input', e => {
   else if (i.value.endsWith(' ')) { i.value = i.value.trim(); document.querySelector(`[data-w="${+i.dataset.w + 1}"]`)?.focus() }
 });
 
+// ---- Tip jar. Tips unlock nothing. Settings → Support Above Ground always has them; the completion screen offers
+// them gently: first at the 3rd completed session, then at most once every 10 completions and 30 days, never in a
+// session where "Need more help?" was opened, and never again after "Don't show again". State syncs in the profile.
+let tipList = null; // [{ label, price, productId?, url? }] available on this device
+async function loadTips() {
+  const rows = (data?.tips || []).filter(t => t.platform === (isNative ? platform : 'web'));
+  if (!isNative) return (tipList = rows.filter(t => t.url).map(t => ({ label: t.label, price: t.label, url: t.url })));
+  const products = await tipProducts(rows.map(t => t.product_id).filter(Boolean));
+  return (tipList = rows.map(t => ({ t, p: products.find(p => p.identifier === t.product_id) })).filter(x => x.p)
+    .map(({ t, p }) => ({ label: t.label, price: p.priceString || t.label, productId: t.product_id })));
+}
+async function supportView(note = '', thanks = false) {
+  const c = data?.copy || {};
+  if (!$('#settings .sub-title')) setBody(sub('Support Above Ground') + '<p class="small">Loading…</p>');
+  const tips = tipList || await loadTips().catch(() => []);
+  const costs = (c.support_costs || '').split('\n').filter(Boolean).map(l => l.split(/:\s*/));
+  setBody(sub('Support Above Ground') + (note ? `<p class="small" role="status">${esc(note)}</p>` : '') +
+    (thanks ? `<p class="thanks" tabindex="-1">${esc(c.tip_thanks || '')}</p>` : '') +
+    `<p>${esc(c.support_intro || '')}</p>
+    ${costs.length ? `<h2>What it costs to run</h2><dl class="costs">${costs.map(([k, v]) => `<div><dt>${esc(k)}</dt><dd>${esc(v || '')}</dd></div>`).join('')}</dl>` : ''}
+    <h2>Leave a tip</h2>
+    ${tips.length ? `<div class="tips">${tips.map((t, i) => `<button class="tip" data-tip="${i}" aria-label="Tip ${esc(t.price)}">${esc(t.price)}</button>`).join('')}</div>`
+      : `<p class="small tight">${esc(c.tips_unavailable || '')}</p>`}`, !thanks);
+  if (thanks) $('#settings .thanks')?.focus();
+}
+const tipsState = () => ({ ...(profile?.tips_state || {}), ...store.get('tips', {}) });
+function saveTipsState(patch) {
+  const t = { ...tipsState(), ...patch }; store.set('tips', t);
+  if (profile) profile.tips_state = t;
+  if (sb && deviceId && navigator.onLine) sb.rpc('save_profile', { p_tips_state: t }).then(() => {}, () => {});
+}
+const DAY = 864e5;
+function completions() { return Math.max((profile?.completions || 0) + (S.doneSinceProfile || 0), store.get('completions', 0)) }
+function tipCardDue() {
+  if (S.helpOpened || !data?.copy?.tip_card || !(tipList || []).length) return false;
+  const t = tipsState(), n = completions();
+  if (t.never) return false;
+  if (!t.shown_at) return n >= 3;
+  return n - (t.shown_count || 0) >= 10 && Date.now() - t.shown_at >= 30 * DAY;
+}
+async function tip(i, btn) {
+  const t = tipList?.[i]; if (!t) return;
+  if (t.url) { window.open(t.url, '_blank', 'noopener'); saveTipsState({ tipped_at: Date.now() }); return supportView('Finish your tip in the page that opened.', true) }
+  btn.disabled = true;
+  try {
+    if (await buyTip(t.productId)) { saveTipsState({ tipped_at: Date.now(), shown_at: Date.now(), shown_count: completions() }); supportView('', true) }
+    else btn.disabled = false;
+  } catch (e) { console.warn(e); supportView("The tip didn't go through, and you weren't charged. Please try again later.") }
+}
+$('#settings').addEventListener('click', e => { const b = e.target.closest('[data-tip]'); if (b) tip(+b.dataset.tip, b) });
+
 // ---- Profile: settings shared by devices with the same sync code (latest change wins), plus tip-jar state.
 // Device-specific settings (reminders on/off, Health) stay on each device.
 let profile = null;
@@ -523,7 +584,7 @@ async function loadProfile() {
   if (!sb || !deviceId) return;
   const { data: p, error } = await sb.rpc('get_profile');
   if (error || !p) return;
-  profile = p; profileAt = Date.now();
+  profile = p; profileAt = Date.now(); S.doneSinceProfile = 0;
   const remoteAt = p.prefs_updated_at ? Date.parse(p.prefs_updated_at) : 0, localAt = prefs.updatedAt ? Date.parse(prefs.updatedAt) : 0;
   if (remoteAt > localAt && Object.keys(p.prefs || {}).length) adoptPrefs(p.prefs, p.prefs_updated_at);
   else if (localAt > remoteAt || !remoteAt) { if (!localAt) { prefs.updatedAt = new Date().toISOString(); store.set('prefs', prefs) } pushPrefs() }
@@ -618,19 +679,22 @@ onAppPause(flush);
 // ---- Startup
 async function loadContent() {
   // Content is public, so it loads whether or not the device has signed in.
-  const [x, a, m, g, c, r] = await Promise.all([
+  const [x, a, m, g, c, r, tp, cp] = await Promise.all([
     sb.from('exercises').select('id,title,kind,body,category,research_summary,sources,audio_url').eq('is_active', true),
     sb.from('affirmations').select('id,body_html,category').eq('is_active', true),
     sb.from('completion_messages').select('id,body').eq('is_active', true),
     sb.from('greetings').select('id,body,contexts').eq('is_active', true),
     sb.from('crisis_resources').select('country,country_name,name,description,phone,sms,sms_body,url,emergency,sort').eq('is_active', true).order('sort'),
-    sb.from('reminder_messages').select('id,body').eq('is_active', true)
+    sb.from('reminder_messages').select('id,body').eq('is_active', true),
+    sb.from('tip_options').select('platform,label,product_id,url,sort').eq('is_active', true).order('sort'),
+    sb.from('app_copy').select('key,body')
   ]);
   const err = x.error || a.error || m.error || g.error;
   if (err) throw err;
   if (x.data?.length && a.data?.length && m.data?.length) {
     data = { exercises: x.data, affirmations: a.data, messages: m.data, greetings: g.data || [],
-      crisis: c.data || data?.crisis || [], reminders: r.data || data?.reminders || [] };
+      crisis: c.data || data?.crisis || [], reminders: r.data || data?.reminders || [],
+      tips: tp.data || data?.tips || [], copy: cp.data ? Object.fromEntries(cp.data.map(x => [x.key, x.body])) : data?.copy || {} };
     store.set(CACHE_KEY, data);
     try { localStorage.removeItem('content'); mirror('content', null) } catch {} // copy saved by the previous app version
   }
@@ -711,6 +775,7 @@ async function init() {
   appReady();
   started = true;
   if (pendingLink) handleLink(pendingLink);
+  setTimeout(() => loadTips().catch(() => {}), 1500);
   healthAvailable().then(ok => { health = ok ? (platform === 'ios' ? 'Apple Health' : 'Health Connect') : '' });
 }
 // Deep links arrive at launch or while running; act once the first screen is up.
