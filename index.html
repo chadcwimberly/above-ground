@@ -170,18 +170,73 @@ header{align-items:center}
 .update{position:fixed;left:50%;bottom:calc(1rem + var(--safe-area-inset-bottom,env(safe-area-inset-bottom)));transform:translateX(-50%);
   width:calc(100% - 2rem);max-width:30rem;display:flex;align-items:center;gap:.75rem;padding:.8rem .8rem .8rem 1.2rem;
   border-radius:1.25rem;background:var(--surface);color:var(--ink);box-shadow:0 .4rem 1.5rem color-mix(in srgb,var(--ink) 25%,transparent);
-  animation:fade .3s;z-index:10}
+  animation:bar-in .45s var(--ease-out);z-index:10}
 .update[hidden]{display:none}
 .update p{margin:0;flex:1;font-size:1rem;line-height:1.35}
 .update button{border:0;border-radius:.9rem;padding:.6rem 1rem;background:var(--accent);color:var(--on);font-weight:500;white-space:nowrap}
 .update .later{background:transparent;color:var(--ink);padding:.6rem .5rem}
 .sr{position:absolute;width:1px;height:1px;margin:-1px;overflow:hidden;clip:rect(0 0 0 0);white-space:nowrap}
 
+/* ---- Motion. Gentle and quick; all of it is off when the system's "reduce motion" setting is on (see the end). */
+:root{--ease-out:cubic-bezier(.22,1,.36,1)}
+body,dialog,.need,.tool,.line,.why,.tipcard{transition:background-color .45s ease,color .45s ease}
+/* Screens: the main area and its footer slide between screens while the header stays still (View Transitions where
+   the browser has them; elsewhere each screen rises in). */
+#main{view-transition-name:screen}#foot{view-transition-name:foot}
+.screen{animation:rise .45s var(--ease-out) both}
+.vt .screen{animation:none}
+::view-transition-old(root),::view-transition-new(root){animation:none}
+::view-transition-group(screen),::view-transition-group(foot){animation-duration:.42s;animation-timing-function:var(--ease-out)}
+::view-transition-old(screen){animation:.16s ease-in both slide-out}
+::view-transition-new(screen){animation:.4s var(--ease-out) .11s both slide-in}
+[data-dir=back]::view-transition-old(screen){animation-name:slide-out-back}
+[data-dir=back]::view-transition-new(screen){animation-name:slide-in-back}
+[data-dir=same]::view-transition-old(screen){animation-name:fade-out}
+[data-dir=same]::view-transition-new(screen){animation-name:rise}
+::view-transition-old(foot){animation:.18s ease both fade-out}
+::view-transition-new(foot){animation:.35s ease .08s both fade}
+.needs .need{animation:rise .5s var(--ease-out) both}
+.needs .need:nth-child(2){animation-delay:.06s}.needs .need:nth-child(3){animation-delay:.12s}
+/* Buttons give a little under the finger */
+.need,.cta,.soft,.opt,.tool,.tip,.icon{transition:transform .16s var(--ease-out),background-color .3s ease,color .3s ease,border-color .3s ease}
+.need:active,.cta:active,.soft:active,.opt:active,.tool:active,.tip:active,.icon:active{transform:scale(.96)}
+.tool[aria-pressed=true]{animation:pop .4s var(--ease-out)}
+/* Sheets (Settings, Need more help?) slide up and back down; the dimmed background fades */
+dialog{transition:transform .4s var(--ease-out),background-color .45s ease,overlay .4s allow-discrete,display .4s allow-discrete}
+dialog:not([open]){transform:translateY(100%)}
+@starting-style{dialog[open]{transform:translateY(100%)}}
+dialog::backdrop{background:rgb(0 0 0/0);transition:background-color .4s ease,overlay .4s allow-discrete,display .4s allow-discrete}
+dialog[open]::backdrop{background:rgb(0 0 0/.35)}
+@starting-style{dialog[open]::backdrop{background:rgb(0 0 0/0)}}
+/* Moving between Settings pages */
+.body.enter-fwd{animation:slide-in .32s var(--ease-out)}
+.body.enter-back{animation:slide-in-back .32s var(--ease-out)}
+.line{animation:rise .45s var(--ease-out) both}
+.line:nth-of-type(2){animation-delay:.06s}.line:nth-of-type(3){animation-delay:.12s}
+/* "Why this works" opens smoothly where the browser can animate it */
+.why{interpolate-size:allow-keywords}
+.why::details-content{block-size:0;overflow:hidden;transition:block-size .35s var(--ease-out),content-visibility .35s allow-discrete}
+.why[open]::details-content{block-size:auto}
+.why[open] p,.why[open] .sources{animation:fade .4s ease .05s both}
+.tipcard{animation:rise .55s var(--ease-out) .4s both}
+.thanks{animation:pop-in .5s var(--ease-out) both}
+.pacer:not([hidden]){animation:fade .4s ease}
+#join-act,.secret{animation:fade .3s ease}
 @keyframes fade{from{opacity:0}to{opacity:1}}
+@keyframes fade-out{to{opacity:0}}
+@keyframes rise{from{opacity:0;transform:translateY(.75rem)}to{opacity:1;transform:none}}
+@keyframes slide-in{from{opacity:0;transform:translateX(1.5rem)}}
+@keyframes slide-out{to{opacity:0;transform:translateX(-1rem)}}
+@keyframes slide-in-back{from{opacity:0;transform:translateX(-1.5rem)}}
+@keyframes slide-out-back{to{opacity:0;transform:translateX(1rem)}}
+@keyframes pop{40%{transform:scale(1.14)}}
+@keyframes pop-in{from{opacity:0;transform:scale(.94)}}
+@keyframes bar-in{from{opacity:0;transform:translate(-50%,1rem)}}
 @keyframes breathe{50%{transform:scale(1.06)}}
 @keyframes float{25%{transform:translate(.4rem,-.5rem)}50%{transform:translate(-.2rem,-.9rem)}75%{transform:translate(-.5rem,-.2rem)}}
 @keyframes spin{to{transform:rotate(360deg)}}
-@media (prefers-reduced-motion:reduce){*{animation:none!important;transition:none!important}}
+@media (prefers-reduced-motion:reduce){*,*::backdrop,*::details-content{animation:none!important;transition:none!important}
+  ::view-transition-group(*),::view-transition-old(*),::view-transition-new(*){animation:none!important}}
 </style>
 </head>
 <body>
