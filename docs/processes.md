@@ -42,10 +42,11 @@ Docs-only or repo-housekeeping changes skip steps 3–5 and need no version bump
   and fix anything new. Keep row-level security on every table.
 - If the app needs to read a new column, update `loadContent()` in `src/main.js`. That counts as an app change,
   so follow section 1.
-- **"Why this works" summaries:** the drafts live in the Claude Doc at
-  https://claude.ai/artifact/VvJuJX3nJsbYSvV8EY9EHm, one row per exercise slug. Once Chad approves them, read the
-  doc back (it includes his edits) and write each row to `exercises.research_summary` and `exercises.sources`
-  (a jsonb list of `{title, url}`), matched by slug.
+- **"Why this works" summaries** live in `exercises.research_summary` and `exercises.sources` (a jsonb list of
+  `{title, year, url}`). The review copy is the Claude Doc at https://claude.ai/artifact/VvJuJX3nJsbYSvV8EY9EHm.
+  For a new or changed exercise, draft it there, get Chad's OK, then write it to the database by slug.
+  Style: describe what the research shows; when it's about the technique in general, say "similar exercises" or
+  "tasks like this" rather than pointing out what hasn't been studied.
 
 ## 3. Native projects (iOS / Android)
 
@@ -122,7 +123,7 @@ an optional later step. Build numbers come from `scripts/sync-native-version.mjs
 
 - [ ] Chad confirms the Netlify domain + GoDaddy DNS; then verify https://aboveground.app and switch the docs to it.
 - [ ] Chad sets up ImprovMX; then send a test email to any@aboveground.app.
-- [ ] Chad approves the "Why this works" drafts; then load them into Supabase (section 2).
+- [x] "Why this works" summaries approved and loaded for all 56 exercises (2026-11-17).
 - [ ] Privacy and support pages for aboveground.app (needs Chad's contact email).
 - [ ] Sync code (12 words + QR), delete-my-data, tip jar ($2/$5/$10, shown after 3 completions + Settings screen).
 - [ ] Signed release workflow → TestFlight / Play internal testing (needs developer accounts).
