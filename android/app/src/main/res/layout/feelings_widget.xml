@@ -1,0 +1,12 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Home-screen widget: the three welcome-screen choices. Hearth colors. -->
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:id="@+id/widget_root" android:layout_width="match_parent" android:layout_height="match_parent"
+    android:orientation="vertical" android:padding="14dp" android:background="@drawable/widget_bg">
+    <TextView android:layout_width="wrap_content" android:layout_height="wrap_content"
+        android:text="@string/app_name" android:textColor="#3a2b21" android:textSize="15sp" android:textStyle="bold"
+        android:layout_marginBottom="8dp" />
+    <TextView android:id="@+id/feel_anxiety" style="@style/WidgetChoice" android:text="@string/feeling_anxiety" />
+    <TextView android:id="@+id/feel_depression" style="@style/WidgetChoice" android:text="@string/feeling_depression" />
+    <TextView android:id="@+id/feel_grounding" style="@style/WidgetChoice" android:text="@string/feeling_grounding" />
+</LinearLayout>

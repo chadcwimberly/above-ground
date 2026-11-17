@@ -1,0 +1,36 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Long-press the app icon (launcher shortcuts) and Google Assistant ("Open Above Ground grounding").
+     Each opens aboveground://start?feeling=..., which the app turns into an exercise. -->
+<shortcuts xmlns:android="http://schemas.android.com/apk/res/android">
+    <capability android:name="actions.intent.OPEN_APP_FEATURE">
+        <intent android:action="android.intent.action.VIEW" android:targetPackage="app.aboveground" android:targetClass="app.aboveground.MainActivity">
+            <url-template android:value="aboveground://start{?feeling}" />
+            <parameter android:name="feature" android:key="feeling" />
+        </intent>
+    </capability>
+
+    <shortcut android:shortcutId="anxiety" android:enabled="true" android:icon="@mipmap/ic_launcher"
+        android:shortcutShortLabel="@string/feeling_anxiety_short" android:shortcutLongLabel="@string/feeling_anxiety">
+        <intent android:action="android.intent.action.VIEW" android:targetPackage="app.aboveground"
+            android:targetClass="app.aboveground.MainActivity" android:data="aboveground://start?feeling=anxiety" />
+        <capability-binding android:key="actions.intent.OPEN_APP_FEATURE">
+            <parameter-binding android:key="feature" android:value="@array/feature_anxiety" />
+        </capability-binding>
+    </shortcut>
+    <shortcut android:shortcutId="depression" android:enabled="true" android:icon="@mipmap/ic_launcher"
+        android:shortcutShortLabel="@string/feeling_depression_short" android:shortcutLongLabel="@string/feeling_depression">
+        <intent android:action="android.intent.action.VIEW" android:targetPackage="app.aboveground"
+            android:targetClass="app.aboveground.MainActivity" android:data="aboveground://start?feeling=depression" />
+        <capability-binding android:key="actions.intent.OPEN_APP_FEATURE">
+            <parameter-binding android:key="feature" android:value="@array/feature_depression" />
+        </capability-binding>
+    </shortcut>
+    <shortcut android:shortcutId="grounding" android:enabled="true" android:icon="@mipmap/ic_launcher"
+        android:shortcutShortLabel="@string/feeling_grounding_short" android:shortcutLongLabel="@string/feeling_grounding">
+        <intent android:action="android.intent.action.VIEW" android:targetPackage="app.aboveground"
+            android:targetClass="app.aboveground.MainActivity" android:data="aboveground://start?feeling=grounding" />
+        <capability-binding android:key="actions.intent.OPEN_APP_FEATURE">
+            <parameter-binding android:key="feature" android:value="@array/feature_grounding" />
+        </capability-binding>
+    </shortcut>
+</shortcuts>

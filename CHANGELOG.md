@@ -4,6 +4,16 @@ All notable changes to Above Ground. Versions follow [Semantic Versioning](https
 MAJOR for changes that break saved data or flows, MINOR for new features, PATCH for fixes.
 The exact time each version went live is shown in the app under Settings → Last Updated.
 
+## 1.5.0 — 2026-11-17
+- Widgets: iOS home-screen (small and medium) and lock-screen widgets, and an Android home-screen widget,
+  each opening straight into an exercise for how you're feeling
+- Siri and Shortcuts (iOS 16+): "Ground me with Above Ground", "I'm anxious in Above Ground", and more
+- Android: long-press the app icon for the three choices; Google Assistant can open them too (App Actions)
+- Mindful minutes: optionally save each completed session to Apple Health, or to Health Connect on Android 16+
+  (Settings, off by default; write-only, Above Ground never reads health data)
+- Deep links: aboveground://start?feeling=anxiety|depression|grounding and aboveground://help;
+  the website accepts ?start=anxiety and ?help
+
 ## 1.4.0 — 2026-11-17
 - "Need more help?" is always in the header (and in Settings): the crisis line for your country with call,
   text and chat buttons, your local emergency number, and a country picker. Lines come from `crisis_resources`
