@@ -29,6 +29,13 @@ All content — exercises, affirmations, completion messages and welcome greetin
 The app ships none of its own; it keeps a copy of the last content it loaded so it keeps working offline.
 To add or change content, edit the rows in Supabase (set `is_active` false to retire one).
 
+## Other content tables
+- `crisis_resources` — the lines shown by "Need more help?", one or more per country (ISO code, e.g. `US`), plus a
+  `*` row used for any other country. `phone`/`sms` are dialable numbers; `emergency` is the local emergency number.
+- `reminder_messages` — wording for the gentle reminder notifications (apps only); one is picked at random.
+- On `exercises`: `research_summary` and `sources` (`[{title, year, url}]`) power "Why this works"; `audio_url` adds a
+  recorded guide; `body.pacing` (`{phases: [{label, seconds, motion: in|hold|out}]}`) adds the breathing guide.
+
 ## How content is picked
 Exercises and affirmations come from the `pick_content` database function. It weights choices using
 only the current device's history: unseen ×3, up-voted ×2.5, down-voted ×0.2, and items shuffled often
