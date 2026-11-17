@@ -1,6 +1,6 @@
 {
   "name": "above-ground",
-  "version": "1.5.1",
+  "version": "1.5.2",
   "private": true,
   "description": "A calm app with research-based exercises for anxiety, depression and grounding. Web, iOS and Android.",
   "type": "module",
@@ -11,7 +11,8 @@
     "native": "npm run build && node scripts/sync-native-version.mjs && cap sync",
     "ios": "npm run native && cap open ios",
     "android": "npm run native && cap open android",
-    "assets": "capacitor-assets generate --ios --android --iconBackgroundColor \"#d8c6b2\" --iconBackgroundColorDark \"#d8c6b2\" --splashBackgroundColor \"#d8c6b2\" --splashBackgroundColorDark \"#d8c6b2\""
+    "assets": "capacitor-assets generate --ios --android --iconBackgroundColor \"#d8c6b2\" --iconBackgroundColorDark \"#d8c6b2\" --splashBackgroundColor \"#d8c6b2\" --splashBackgroundColorDark \"#d8c6b2\"",
+    "preview:ios": "bash scripts/preview-ios.sh"
   },
   "engines": {
     "node": ">=22"
