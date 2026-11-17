@@ -4,6 +4,18 @@ All notable changes to Above Ground. Versions follow [Semantic Versioning](https
 MAJOR for changes that break saved data or flows, MINOR for new features, PATCH for fixes.
 The exact time each version went live is shown in the app under Settings → Last Updated.
 
+## 1.7.0 — 2026-11-17
+- Sync across devices, with no account: Settings → Show my sync code gives 12 words and a QR code; another
+  device links with Settings → I have a sync code (type, paste or scan). Linked devices share settings (theme,
+  font, vibration, reminder time and days, crisis-line country) and history, so weighting learns from all of
+  them. Linked devices are listed by name and can be removed; "Make a new code" replaces the code.
+- Only a SHA-256 hash of the words reaches the server; joining is limited to 5 tries an hour.
+- Settings → Download or delete my data: a JSON export, and deletion of this device's data or everything on all
+  linked devices, including the anonymous sign-ins. The app then starts fresh.
+- Sync links (`https://aboveground.app/sync#…`) open the link screen with the words filled in.
+- Database: `profiles`, `devices.profile_id` and the sync/export/delete functions
+  (migration `20261117223741_profiles_and_sync`).
+
 ## 1.6.0 — 2026-11-17
 - Website: when a newer version goes live, a small "A new version of Above Ground is ready" bar offers
   Refresh or Later. It never reloads on its own, so nobody loses their place mid-exercise.

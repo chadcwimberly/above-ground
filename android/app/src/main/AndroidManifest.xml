@@ -59,6 +59,8 @@
 
     <!-- Permissions -->
 
+    <uses-permission android:name="android.permission.CAMERA" />
+    <uses-feature android:name="android.hardware.camera" android:required="false" />
     <uses-permission android:name="android.permission.INTERNET" />
     <!-- Write-only: saves completed sessions as mindfulness sessions when turned on in Settings (Android 16+) -->
     <uses-permission android:name="android.permission.health.WRITE_MINDFULNESS" />
