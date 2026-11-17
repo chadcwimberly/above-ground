@@ -4,6 +4,10 @@ All notable changes to Above Ground. Versions follow [Semantic Versioning](https
 MAJOR for changes that break saved data or flows, MINOR for new features, PATCH for fixes.
 The exact time each version went live is shown in the app under Settings → Last Updated.
 
+## 1.5.1 — 2026-11-17
+- Website ready for aboveground.app: "Above Ground" as the installed web app's name (was "Ground"),
+  a page description, and canonical and sharing tags pointing at https://aboveground.app/
+
 ## 1.5.0 — 2026-11-17
 - Widgets: iOS home-screen (small and medium) and lock-screen widgets, and an Android home-screen widget,
   each opening straight into an exercise for how you're feeling
