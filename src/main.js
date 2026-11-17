@@ -6,8 +6,9 @@ import '@fontsource/alegreya-sans/500.css';
 import '@fontsource/source-sans-3/400.css';
 import '@fontsource/source-sans-3/500.css';
 import { createClient } from '@supabase/supabase-js';
-import { isNative, restoreSaved, mirror, authStorage, syncSystemBars, appReady, onBackButton, onAppPause,
-  canVibrate, tap, followSystemTextSize, canRemind, scheduleReminders, guessCountry } from './platform.js';
+import { isNative, platform, restoreSaved, mirror, authStorage, syncSystemBars, appReady, onBackButton, onAppPause,
+  canVibrate, tap, followSystemTextSize, canRemind, scheduleReminders, guessCountry,
+  onDeepLink, healthAvailable, requestHealth, logMindful } from './platform.js';
 
 // In the native apps, bring back saved settings, content and the event queue before anything reads them.
 await restoreSaved();
@@ -240,15 +241,24 @@ document.addEventListener('click', e => {
   if (a === 'help') return openHelp();
   if (busy) return;
   if (a === 'retry') { b.disabled = true; b.textContent = 'Trying…'; if (sb) loadWithWait().then(() => go('welcome')); else location.reload(); return }
-  if (a === 'need') { S.cat = b.dataset.c; S.ex = S.af = null; go('exercise', true) }
+  if (a === 'need') startCategory(b.dataset.c);
   if (a === 'up' || a === 'down') return vote(k, it, a === 'up' ? 1 : -1);
   if (a === 'refresh') { log('refresh', it, k); go(k, true) }
   if (a === 'next') { log('next', it, 'exercise'); go('affirmation', true) }
   if (a === 'back' && k === 'affirmation') { log('back', it, 'affirmation'); go('exercise', false) }
   if (a === 'back' && k === 'exercise') { log('back', it, 'exercise'); go('welcome') }
-  if (a === 'done') { log('complete', S.ex, 'exercise'); log('complete', S.af, 'affirmation'); go('message', true) }
+  if (a === 'done') { log('complete', S.ex, 'exercise'); log('complete', S.af, 'affirmation'); if (prefs.health) logMindful(S.startedAt, Date.now()); go('message', true) }
   if (a === 'restart') { log('restart', it, 'message'); S.votes = {}; go('welcome') }
 });
+
+// Start a session in a category (welcome buttons, widgets, shortcuts). Mindful minutes count from here.
+function startCategory(cat) {
+  if (!NEEDS.some(n => n[0] === cat)) return;
+  S.cat = cat; S.ex = S.af = null; S.startedAt = Date.now();
+  if ($('#settings').open) $('#settings').close();
+  if ($('#help').open) $('#help').close();
+  go('exercise', true);
+}
 
 // ---- Settings: theme (stored as prefs.palette) + font
 const P = [['hearth', 'Hearth', '#d8c6b2', '#6f4a33'], ['moss', 'Moss', '#cfd6c8', '#4f6b50'], ['tide', 'Tide', '#cdd8de', '#3f6477'], ['pine', 'Pine', '#1f2a27', '#8fb8a3'], ['dusk', 'Dusk', '#2b2830', '#b9a7c9']];
@@ -266,6 +276,7 @@ function applyPrefs() {
   syncSystemBars(bg);
 }
 const DAYS = [[1, 'S', 'Sunday'], [2, 'M', 'Monday'], [3, 'T', 'Tuesday'], [4, 'W', 'Wednesday'], [5, 'T', 'Thursday'], [6, 'F', 'Friday'], [7, 'S', 'Saturday']];
+let health = ''; // 'Apple Health' / 'Health Connect' when this device can save mindful minutes
 function buildSettings(note = '') {
   const r = prefs.reminders;
   $('#settings .body').innerHTML = `<h2>Theme</h2><div class="opts">${P.map(p =>
@@ -278,6 +289,7 @@ function buildSettings(note = '') {
       <div class="days" role="group" aria-label="Days">${DAYS.map(([n, l, full]) =>
         `<button class="opt text day" data-day="${n}" aria-label="${full}" aria-pressed="${r.days.includes(n)}">${l}</button>`).join('')}</div></div>` : ''}
       ${note ? `<p class="small" role="status">${esc(note)}</p>` : ''}` : ''}
+    ${health ? `<h2>${health}</h2><div class="opts"><button class="opt text" data-t="health" aria-pressed="${!!prefs.health}">Save mindful minutes</button></div>` : ''}
     <p class="small">Above Ground offers support for everyday moments. It isn't a replacement for professional care.
       <button class="link" data-a="help">Need more help?</button></p>
     <p class="small">Device: ${deviceId ? (deviceName ? `${esc(deviceName)} (${deviceId.slice(0, 8)})` : deviceId.slice(0, 8)) : 'offline mode'}<br>
@@ -304,6 +316,10 @@ $('#settings').addEventListener('click', async e => {
   if (f) prefs.font = f.dataset.f;
   if (t?.dataset.t === 'haptics') { prefs.haptics = prefs.haptics === false; if (prefs.haptics) tap() }
   let note = '';
+  if (t?.dataset.t === 'health') {
+    if (prefs.health) prefs.health = false;
+    else { prefs.health = await requestHealth(); if (!prefs.health) note = `Above Ground can't save to ${health} yet. You can allow it in ${health}.` }
+  }
   if (t?.dataset.t === 'reminders') { prefs.reminders.enabled = !prefs.reminders.enabled; applyPrefs(); note = await updateReminders(true) }
   if (day) {
     const n = +day.dataset.day, d = prefs.reminders.days;
@@ -447,7 +463,19 @@ async function init() {
   }
   go('welcome');
   appReady();
+  started = true;
+  if (pendingLink) handleLink(pendingLink);
+  healthAvailable().then(ok => { health = ok ? (platform === 'ios' ? 'Apple Health' : 'Health Connect') : '' });
 }
+// Deep links arrive at launch or while running; act once the first screen is up.
+let started = false, pendingLink = null;
+function handleLink(l) {
+  if (!started) { pendingLink = l; return }
+  pendingLink = null;
+  if (l.route === 'help') return openHelp();
+  if (l.route === 'start') return l.feeling ? startCategory(l.feeling) : go('welcome');
+}
+onDeepLink(handleLink);
 // Android back button: close Settings, else step back a screen, else leave the app.
 onBackButton(() => {
   if ($('#help').open) { $('#help').close(); return true }

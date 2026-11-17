@@ -2,7 +2,7 @@
 // On the web nothing here changes behavior: storage stays in localStorage and the service worker runs.
 // In the native apps, localStorage is only a fast cache: the OS may clear a web view's storage, so every
 // saved value is mirrored to Capacitor Preferences (UserDefaults / SharedPreferences) and restored at launch.
-import { Capacitor, SystemBars, SystemBarsStyle } from '@capacitor/core';
+import { Capacitor, SystemBars, SystemBarsStyle, registerPlugin } from '@capacitor/core';
 import { Preferences } from '@capacitor/preferences';
 import { SplashScreen } from '@capacitor/splash-screen';
 import { App } from '@capacitor/app';
@@ -114,4 +114,29 @@ export function guessCountry() {
     if (m) return m[1].toUpperCase();
   }
   return '';
+}
+
+// ---- Deep links: aboveground://start?feeling=anxiety (widgets, Siri Shortcuts, Android shortcuts),
+// aboveground://help. The website accepts the same as ?start=anxiety or ?help.
+export function onDeepLink(handler) {
+  const web = new URLSearchParams(location.search);
+  if (web.has('start') || web.has('help')) handler({ route: web.has('help') ? 'help' : 'start', feeling: web.get('start') });
+  if (!isNative) return;
+  const parse = url => { try { const u = new URL(url); return { route: u.host || u.pathname.replace(/^\/+/, ''), feeling: u.searchParams.get('feeling') } } catch { return null } };
+  App.getLaunchUrl().then(r => { const l = r?.url && parse(r.url); if (l) handler(l) }).catch(() => {});
+  App.addListener('appUrlOpen', e => { const l = parse(e.url); if (l) handler(l) });
+}
+
+// ---- Mindful minutes: Apple Health (iOS) and Health Connect (Android 16+), through the app's own Health plugin.
+const Health = registerPlugin('Health');
+export async function healthAvailable() {
+  if (!isNative) return false;
+  try { return (await Health.isAvailable()).available } catch { return false }
+}
+export async function requestHealth() {
+  try { return (await Health.requestAuthorization()).granted } catch { return false }
+}
+export async function logMindful(start, end) {
+  if (!isNative || end - start < 10000) return; // ignore very short sessions
+  try { await Health.logMindfulSession({ start, end }) } catch (e) { console.warn('Could not save mindful minutes', e) }
 }

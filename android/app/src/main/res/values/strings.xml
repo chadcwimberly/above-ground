@@ -4,4 +4,12 @@
     <string name="title_activity_main">Above Ground</string>
     <string name="package_name">app.aboveground</string>
     <string name="custom_url_scheme">app.aboveground</string>
+    <!-- Feelings: the same three choices as the welcome screen -->
+    <string name="feeling_anxiety">I\'m feeling anxious</string>
+    <string name="feeling_depression">I\'m feeling depressed</string>
+    <string name="feeling_grounding">I need some grounding</string>
+    <string name="feeling_anxiety_short">Anxious</string>
+    <string name="feeling_depression_short">Depressed</string>
+    <string name="feeling_grounding_short">Grounding</string>
+    <string name="widget_description">Start an exercise for how you\'re feeling.</string>
 </resources>

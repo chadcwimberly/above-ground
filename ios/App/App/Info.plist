@@ -66,5 +66,20 @@
 	</array>
 	<key>UIViewControllerBasedStatusBarAppearance</key>
 	<true/>
+	<key>CFBundleURLTypes</key>
+	<array>
+		<dict>
+			<key>CFBundleURLName</key>
+			<string>app.aboveground</string>
+			<key>CFBundleURLSchemes</key>
+			<array>
+				<string>aboveground</string>
+			</array>
+		</dict>
+	</array>
+	<key>NSHealthUpdateUsageDescription</key>
+	<string>Above Ground saves the time you spend on exercises to Apple Health as Mindful Minutes, if you turn this on in Settings.</string>
+	<key>NSHealthShareUsageDescription</key>
+	<string>Above Ground doesn't read your health data. It only saves Mindful Minutes when you turn this on.</string>
 </dict>
 </plist>

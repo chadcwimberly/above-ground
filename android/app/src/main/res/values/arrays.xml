@@ -1,0 +1,7 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- Words Google Assistant matches to each feeling for "Open Above Ground ..." (App Actions) -->
+    <string-array name="feature_anxiety"><item>anxious</item><item>anxiety</item><item>calm down</item></string-array>
+    <string-array name="feature_depression"><item>depressed</item><item>down</item><item>low</item></string-array>
+    <string-array name="feature_grounding"><item>grounding</item><item>ground me</item></string-array>
+</resources>

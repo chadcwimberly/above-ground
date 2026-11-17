@@ -19,6 +19,14 @@ Requires Node 22.
 GitHub Actions (`.github/workflows/native-build.yml`) builds the Android and iOS apps on every push and
 pull request and attaches an installable Android debug APK and an iOS Simulator build to each run.
 
+## Native extras
+- Deep links `aboveground://start?feeling=anxiety|depression|grounding` and `aboveground://help` (website: `?start=…`, `?help`).
+  Widgets, Siri Shortcuts and Android shortcuts all use them; `src/platform.js` → `onDeepLink`.
+- iOS: `ios/App/AboveGroundWidget/` (WidgetKit extension, bundle `app.aboveground.widget`), `App/AppShortcuts.swift`
+  (App Intents), `App/HealthPlugin.swift` (Apple Health, registered in `App/MainViewController.swift`).
+- Android: `FeelingsWidget.java` + `res/layout/feelings_widget.xml`, `res/xml/shortcuts.xml` (launcher shortcuts and
+  App Actions), `HealthPlugin.java` (Health Connect, Android 16+, registered in `MainActivity.java`).
+
 ## Storage
 On the web, settings, cached content and the event queue live in localStorage, and Supabase keeps its
 anonymous sign-in there too. In the native apps localStorage is only a cache: every value is mirrored to
