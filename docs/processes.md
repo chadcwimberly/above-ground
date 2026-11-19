@@ -112,6 +112,12 @@ costing a production deploy.)
 ## 3. Native projects (iOS / Android)
 
 - Capacitor 8, app ID `app.aboveground`. iOS uses Swift Package Manager. Android uses Java 21.
+- **Logo and icons:** the source artwork is `assets/logo-source.png` (the sandstone worry stone on cream).
+  `python3 scripts/make-logo.py assets/logo-source.png .` cuts the stone out (keeping its shadow) and writes the
+  `assets/` inputs plus the web icons in `public/` (favicons, Apple touch icon, PWA and maskable icons). Then
+  `npm run assets` makes the iOS/Android icon and splash sets, and `npm run native` syncs them. To change the logo,
+  replace the source image and rerun those three steps; the script's sizes keep the stone inside each platform's
+  safe area.
 - **Custom plugins:** iOS `HealthPlugin.swift` is registered in `ios/App/App/MainViewController.swift`. Android
   `HealthPlugin.java` is registered in `MainActivity.java`. Register any new native plugin the same way and call it
   from JS through `registerPlugin()` in `src/platform.js`.

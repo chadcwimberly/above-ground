@@ -1,5 +1,5 @@
 const C = 'ground-v3';
-const SHELL = ['./', 'index.html', 'manifest.webmanifest', 'icon.svg'];
+const SHELL = ['./', 'index.html', 'manifest.webmanifest', 'favicon.ico', 'favicon-32.png', 'icon-192.png'];
 
 self.addEventListener('install', e => {
   e.waitUntil(caches.open(C).then(c => c.addAll(SHELL)));

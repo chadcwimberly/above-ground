@@ -23,6 +23,9 @@ The exact time each version went live is shown in the app under Settings → Las
 - Settings shows a contact line with hello@aboveground.app (text and address live in `app_copy`).
 - Website tips: the live site uses the `web` tip rows, while deploy previews and local builds use new `web-test`
   rows holding Stripe test-mode links, so the tip flow can be tried without real payments.
+- New logo: a layered sandstone worry stone. It's the app icon on iOS and Android (including Android's adaptive
+  and round icons), the splash screen, the website favicon, the home-screen icon (Apple touch icon and PWA
+  icons, with a maskable version) and the icon on the privacy and support pages. Replaces the placeholder circles.
 
 ## 1.9.0 — 2026-11-17
 - Smooth motion throughout: screens slide forward and back (View Transitions where supported, a gentle rise
