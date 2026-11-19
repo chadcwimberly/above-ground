@@ -388,9 +388,8 @@ async function devicesHtml() {
 // "Make a new code?" takes over the whole modal, like a dialog box, until it's confirmed or cancelled.
 function newCodeConfirm() {
   setBody(`<h1 class="sub-title" tabindex="-1">Make a new sync code?</h1>
-    <p>Your current code will stop working for linking new devices. Devices already linked stay linked and keep
-      syncing.</p>
-    <p class="small">Your other devices will show the new code too.</p>
+    <p>Your current code will stop working for linking new devices. Devices already linked stay linked, keep
+      syncing, and will show the new code too.</p>
     <div class="opts confirm"><button class="soft primary" data-s="newcode-yes">Make a new code</button>
       <button class="soft" data-v="sync" data-dir="back">Cancel</button></div>`);
   $('#settings .body').scrollTop = 0; slideBody('fwd');

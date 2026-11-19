@@ -52,6 +52,7 @@ input{width:100%;padding:.8rem 1rem;margin-bottom:.6rem;border-radius:var(--radi
   border:1px solid color-mix(in srgb,var(--ink) 25%,transparent)}
 .aff,.msg{font-size:2rem;line-height:1.3}
 .lead{font-size:1.15rem;color:var(--mute);margin:0 0 1.25rem}
+dialog .lead{font-size:inherit}
 .aff p{margin:.4rem 0}
 .aff .how{font-size:1.15rem;line-height:1.5;color:var(--mute);margin-top:1rem}
 .msg{font-size:1.75rem;margin:0}
@@ -87,7 +88,7 @@ footer .soft{display:block;margin:.75rem auto 0}
    smaller menu size (the --btn-* tokens); every text button app-wide shares --radius, icon buttons are circles. */
 dialog{margin:auto;width:calc(100% - 2rem);max-width:30rem;border:0;border-radius:1.5rem;padding:0;overflow:hidden;
   background:var(--surface);color:var(--ink);box-shadow:0 1.5rem 3rem rgb(0 0 0/.25);
-  --btn-font:.95rem;--btn-py:.45rem;--btn-px:.85rem}
+  font-size:1rem;line-height:1.5;--btn-font:.95rem;--btn-py:.45rem;--btn-px:.85rem}
 dialog .x{position:absolute;top:.6rem;right:.6rem;z-index:1;background:var(--surface)}
 dialog .x:hover{background:var(--bg)}
 dialog::backdrop{background:rgb(0 0 0/.35)}
