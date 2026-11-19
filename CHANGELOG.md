@@ -14,6 +14,8 @@ The exact time each version went live is shown in the app under Settings → Las
 - Sync code: the 12 words sit in one box (shown read-only with a word count and copy button, or typed/pasted
   when linking, with a live count that flags words not in the list); the QR code uses round dots and rounded
   corners on a light tile so it scans in every theme.
+- The sync code box fits its words with no empty space below. "Make a new code" and "Delete my data" ask for
+  confirmation on their own screen in the modal (Cancel goes back) instead of adding text at the bottom.
 - "Support Above Ground" now speaks of contributions: new intro text, a "Leave a Tip" button, and matching card,
   thank-you and website wording. The running-costs table is gone from this screen. All of it lives in `app_copy` (`support_cta` and
   `tip_card_button` are new).

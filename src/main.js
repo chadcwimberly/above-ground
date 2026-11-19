@@ -363,7 +363,11 @@ const COPY_BTN = `<button class="icon copy" data-s="copy" aria-label="Copy sync 
   stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="8" y="8" width="12" height="12" rx="2.5"/>
   <path d="M16 8V6.5A2.5 2.5 0 0 0 13.5 4h-7A2.5 2.5 0 0 0 4 6.5v7A2.5 2.5 0 0 0 6.5 16H8"/></svg></button>`;
 const sub = title => `<button class="link back-link" data-v="main">‹ Settings</button><h1 class="sub-title" tabindex="-1">${esc(title)}</h1>`;
-const setBody = (html, focus = true) => { const b = $('#settings .body'); b.innerHTML = html; if (focus) b.querySelector('.sub-title')?.focus() };
+const setBody = (html, focus = true) => {
+  const b = $('#settings .body'); b.innerHTML = html;
+  b.querySelectorAll('.code').forEach(fitCode);
+  if (focus) b.querySelector('.sub-title')?.focus();
+};
 const offlineNote = title => setBody(sub(title) + `<p>This needs an internet connection. Please try again when you're online.</p>`);
 const plural = (n, w) => `${n} ${w}${n === 1 ? '' : 's'}`;
 
@@ -381,7 +385,17 @@ async function devicesHtml() {
   return `<h2>Linked devices</h2><ul class="devices">${list.map(d => `<li><span>${esc(d.name)}${d.is_me ? ' <em>(this device)</em>' : ''}</span>
     ${d.is_me ? `<button class="link" data-s="leave">Stop syncing</button>` : `<button class="link" data-s="unlink" data-id="${esc(d.id)}">Remove</button>`}</li>`).join('')}</ul>`;
 }
-async function syncView(note = '', confirm = false) {
+// "Make a new code?" takes over the whole modal, like a dialog box, until it's confirmed or cancelled.
+function newCodeConfirm() {
+  setBody(`<h1 class="sub-title" tabindex="-1">Make a new sync code?</h1>
+    <p>Your current code will stop working for linking new devices. Devices already linked stay linked and keep
+      syncing.</p>
+    <p class="small">Your other devices will show the new code too.</p>
+    <div class="opts confirm"><button class="soft primary" data-s="newcode-yes">Make a new code</button>
+      <button class="soft" data-v="sync" data-dir="back">Cancel</button></div>`);
+  $('#settings .body').scrollTop = 0; slideBody('fwd');
+}
+async function syncView(note = '') {
   const title = 'Your sync code';
   if (!sb || !deviceId || !navigator.onLine) return offlineNote(title);
   if (!$('#settings .sub-title:not(.menu-title)')) setBody(sub(title) + '<p class="small">Loading…</p>');
@@ -390,9 +404,7 @@ async function syncView(note = '', confirm = false) {
     let words = store.get('syncWords', '');
     const mine = !!words && !!profile?.sync_code_hash && await hashCode(words) === profile.sync_code_hash;
     if (!profile?.sync_code_hash) words = await makeCode();
-    const replace = confirm ? `<p>Make a new code? The old one stops working for new devices. Devices already linked stay linked.</p>
-        <div class="opts"><button class="soft" data-s="newcode-yes">Yes, make a new code</button><button class="soft" data-v="sync">Cancel</button></div>`
-      : `<button class="soft" data-s="newcode">Make a new code</button>`;
+    const replace = `<button class="soft" data-s="newcode">Make a new code</button>`;
     if (profile.sync_code_hash && !mine && !(await hashCode(words || '') === profile.sync_code_hash)) {
       return setBody(sub(title) + (note ? `<p class="small" role="status">${esc(note)}</p>` : '') +
         `<p>Your sync code was made on another device. Open Settings there to see it, or make a new code here.</p>${replace}${await devicesHtml()}`);
@@ -428,9 +440,12 @@ function joinView(prefill = '', note = '') {
 }
 const joinWords = () => $('#join-code')?.value || '';
 function fillWords(text) { const t = $('#join-code'); t.value = normalize(wordsFromLink(text) || text); codeCount(); t.focus() }
+// Code boxes grow to fit their words (no empty space below), up to the CSS max height.
+function fitCode(t) { if (!t) return; t.style.height = 'auto'; t.style.height = t.scrollHeight + 'px' }
 // Live word count, and which words (if any) aren't in the word list, so typos show up before linking.
 function codeCount() {
   const t = $('#join-code'), out = $('#join-count'); if (!t || !out) return;
+  fitCode(t);
   const w = normalize(t.value).split(' ').filter(Boolean), odd = w.filter(x => !WORDS.has(x));
   out.textContent = `Word count: ${w.length} of 12` + (odd.length ? ` · Check: ${odd.slice(0, 3).join(', ')}` : '');
   out.classList.toggle('warn', odd.length > 0 || w.length > 12);
@@ -460,7 +475,7 @@ async function doJoin(keep) {
 
 // ---- Privacy: download everything stored for this profile, or delete it.
 let delScope = 'device';
-function privacyView(note = '', confirm = false) {
+function privacyView(note = '') {
   const title = 'Your data';
   if (!sb || !deviceId || !navigator.onLine) return offlineNote(title);
   const many = profile?.devices > 1;
@@ -476,22 +491,31 @@ function privacyView(note = '', confirm = false) {
     ${many ? `<div class="opts"><button class="opt text" data-s="scope" data-scope="device" aria-pressed="${delScope === 'device'}">This device only</button>
       <button class="opt text" data-s="scope" data-scope="everything" aria-pressed="${delScope === 'everything'}">Everything, on all linked devices</button></div>` : ''}
     <p class="small tight">${what} It happens right away and can't be undone.</p>
-    ${confirm ? `<p>Are you sure?</p><div class="opts"><button class="soft danger" data-s="delete-yes">Yes, delete</button><button class="soft" data-s="delete-no">Cancel</button></div>`
-      : '<button class="soft danger" data-s="delete">Delete my data</button>'}`, !confirm);
-  if (confirm) $('[data-s=delete-no]')?.focus();
+    <button class="soft danger" data-s="delete">Delete my data</button>`);
+}
+// "Delete my data?" takes over the whole modal, like a dialog box, until it's confirmed or cancelled.
+function deleteConfirm() {
+  const all = delScope === 'everything' && profile?.devices > 1;
+  setBody(`<h1 class="sub-title" tabindex="-1">${all ? 'Delete everything on all linked devices?' : 'Delete my data?'}</h1>
+    <p>${all ? 'Your settings, history and sync code will be deleted from every linked device.'
+      : profile?.devices > 1 ? "This device's history and anonymous ID will be deleted. Your other linked devices keep theirs."
+      : 'Your settings, history and anonymous ID will be deleted.'} This happens right away and can't be undone.</p>
+    <div class="opts confirm"><button class="soft danger primary-danger" data-s="delete-yes">Delete</button>
+      <button class="soft" data-s="delete-no">Cancel</button></div>`);
+  $('#settings .body').scrollTop = 0; slideBody('fwd');
 }
 
 // Sync, join and privacy actions.
 $('#settings').addEventListener('click', async e => {
   const v = e.target.closest('[data-v]'), b = e.target.closest('[data-s]');
-  if (v) { stopScan(); sv = v.dataset.v; if (sv === 'join') joinView(); else buildSettings(); return slideBody(sv === 'main' ? 'back' : 'fwd') }
+  if (v) { stopScan(); sv = v.dataset.v; if (sv === 'join') joinView(); else buildSettings(); return slideBody(v.dataset.dir || (sv === 'main' ? 'back' : 'fwd')) }
   if (!b) return;
   const s = b.dataset.s;
   try {
     if (s === 'reveal') { const box = $('.secret'), on = box.hasAttribute('data-hidden'); box.toggleAttribute('data-hidden', !on); b.textContent = on ? 'Hide code' : 'Reveal code'; b.setAttribute('aria-pressed', on) }
     if (s === 'copy') { await navigator.clipboard.writeText(normalize(store.get('syncWords', ''))); b.setAttribute('aria-label', 'Copied'); b.classList.add('done'); announce('Sync code copied') }
-    if (s === 'newcode') syncView('', true);
-    if (s === 'newcode-yes') { await makeCode(); syncView('Your new code is ready. Linked devices stay linked.') }
+    if (s === 'newcode') newCodeConfirm();
+    if (s === 'newcode-yes') { b.disabled = true; await makeCode(); setBody(sub('Your sync code') + '<p class="small">Loading…</p>'); await syncView('Your new code is ready. Linked devices stay linked.'); slideBody('back') }
     if (s === 'unlink') { b.disabled = true; await sb.rpc('unlink_device', { p_device: b.dataset.id }); syncView('That device is no longer linked. It keeps its own settings.') }
     if (s === 'leave') { b.disabled = true; await sb.rpc('unlink_device', { p_device: deviceId }); store.set('syncWords', ''); sv = 'main'; await loadProfile(); buildSettings() }
     if (s === 'scan') {
@@ -508,8 +532,8 @@ $('#settings').addEventListener('click', async e => {
     if (s === 'join-keep') await doJoin(true);
     if (s === 'join-fresh') await doJoin(false);
     if (s === 'scope') { delScope = b.dataset.scope; privacyView() }
-    if (s === 'delete') privacyView('', true);
-    if (s === 'delete-no') privacyView();
+    if (s === 'delete') deleteConfirm();
+    if (s === 'delete-no') { privacyView(); slideBody('back') }
     if (s === 'export') {
       b.disabled = true; b.textContent = 'Preparing…';
       const { data: d, error } = await sb.rpc('export_my_data');
