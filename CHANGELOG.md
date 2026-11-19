@@ -6,7 +6,8 @@ The exact time each version went live is shown in the app under Settings → Las
 
 ## 1.10.0 — 2026-11-18
 - Privacy policy and support pages at `aboveground.app/privacy` and `aboveground.app/support` (both stores need
-  them), linked from the bottom of Settings.
+  them), linked from the bottom of Settings. On the website the links stay on the site being viewed (so a deploy
+  preview opens its own pages); the apps open aboveground.app.
 - Settings shows a contact line with hello@aboveground.app (text and address live in `app_copy`).
 - Website tips: the live site uses the `web` tip rows, while deploy previews and local builds use new `web-test`
   rows holding Stripe test-mode links, so the tip flow can be tried without real payments.

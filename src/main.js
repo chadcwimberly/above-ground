@@ -298,6 +298,9 @@ function applyPrefs() {
 }
 const DAYS = [[1, 'S', 'Sunday'], [2, 'M', 'Monday'], [3, 'T', 'Tuesday'], [4, 'W', 'Wednesday'], [5, 'T', 'Thursday'], [6, 'F', 'Friday'], [7, 'S', 'Saturday']];
 let health = ''; // 'Apple Health' / 'Health Connect' when this device can save mindful minutes
+// Privacy and support pages: on the website, the site being viewed (so a deploy preview links to its own
+// pages); in the apps, which have no web address of their own, the live site.
+const pageBase = isNative ? SITE : location.origin;
 let sv = 'main'; // which Settings page is showing: main, sync, join, privacy
 function buildSettings(note = '') {
   if (sv === 'sync') return syncView(note);
@@ -328,8 +331,8 @@ function buildSettings(note = '') {
       <button class="link" data-a="help">Need more help?</button></p>
     ${data?.copy?.contact_email ? `<h2>Contact</h2><p class="small tight">${esc(data.copy.contact_line || '')}
       <a href="mailto:${esc(data.copy.contact_email)}">${esc(data.copy.contact_email)}</a></p>` : ''}
-    <p class="small"><a href="${SITE}/privacy" target="_blank" rel="noopener">Privacy policy</a> ·
-      <a href="${SITE}/support" target="_blank" rel="noopener">Support</a></p>
+    <p class="small"><a href="${pageBase}/privacy/" target="_blank" rel="noopener">Privacy policy</a> ·
+      <a href="${pageBase}/support/" target="_blank" rel="noopener">Support</a></p>
     <p class="small">Device: ${deviceId ? (deviceName ? `${esc(deviceName)} (${deviceId.slice(0, 8)})` : deviceId.slice(0, 8)) : 'offline mode'}<br>
     Last Updated: ${version ? `${esc(fmtRelease(version.releasedAt))} (${esc(version.version)})` : 'unknown'}</p>
     <button class="soft" data-close>Close</button>`;
