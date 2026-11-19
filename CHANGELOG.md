@@ -14,6 +14,9 @@ The exact time each version went live is shown in the app under Settings → Las
 - Sync code: the 12 words sit in one box (shown read-only with a word count and copy button, or typed/pasted
   when linking, with a live count that flags words not in the list); the QR code uses round dots and rounded
   corners on a light tile so it scans in every theme.
+- "Support Above Ground" now speaks of contributions: new intro text, a "Contribute to Above Ground" heading and
+  button, and matching card, thank-you and website wording. All of it lives in `app_copy` (`support_cta` and
+  `tip_card_button` are new).
 - Settings shows a contact line with hello@aboveground.app (text and address live in `app_copy`).
 - Website tips: the live site uses the `web` tip rows, while deploy previews and local builds use new `web-test`
   rows holding Stripe test-mode links, so the tip flow can be tried without real payments.

@@ -183,7 +183,7 @@ function render() {
   if (k === 'exercise') main.innerHTML = `<div class="screen"><h1>${esc(it.title)}</h1>${(R[it.kind] || R.steps)(it.body || {})}${extras(it)}</div>`;
   if (k === 'affirmation') main.innerHTML = `<div class="screen said-on-blob">${BLOB}<div class="said"><p class="lead">Repeat after me:</p><div class="aff">${it.body_html}</div></div></div>`;
   if (k === 'message') main.innerHTML = `<div class="screen"><p class="msg">${esc(it.body)}</p>${S.showTip ? `<div class="tipcard">
-    <p>${esc(data.copy.tip_card)}</p><button class="soft" data-a="tip-open">Leave a tip</button>
+    <p>${esc(data.copy.tip_card)}</p><button class="soft" data-a="tip-open">${esc(data.copy.tip_card_button || data.copy.support_cta || '')}</button>
     <div class="tipcard-more"><button class="link" data-a="tip-later">Not now</button><button class="link" data-a="tip-never">Don't show again</button></div></div>` : ''}</div>`;
   if (k === 'message') {
     foot.innerHTML = `<button class="cta" data-a="restart">Restart</button>`;
@@ -325,7 +325,7 @@ function buildSettings(note = '') {
       ? ` This device is synced with ${profile.devices - 1} other device${profile.devices > 2 ? 's' : ''}.` : ''}</p>
     <div class="opts"><button class="opt text" data-v="sync" ${online ? '' : 'disabled'}>Show my sync code</button>
       <button class="opt text" data-v="join" ${online ? '' : 'disabled'}>I have a sync code</button></div>
-    ${data?.copy?.support_intro ? `<h2>Support Above Ground</h2><div class="opts"><button class="opt text" data-v="support">Leave a tip</button></div>` : ''}
+    ${data?.copy?.support_intro ? `<h2>Support Above Ground</h2><div class="opts"><button class="opt text" data-v="support">${esc(data.copy.support_cta || 'Support Above Ground')}</button></div>` : ''}
     <h2>Privacy</h2><div class="opts"><button class="opt text" data-v="privacy" ${online ? '' : 'disabled'}>Download or delete my data</button></div>
     ${online ? '' : '<p class="small tight">Sync and privacy tools need an internet connection.</p>'}
     <p class="small">Above Ground offers support for everyday moments. It isn't a replacement for professional care.
@@ -562,8 +562,8 @@ async function supportView(note = '', thanks = false) {
     (thanks ? `<p class="thanks" tabindex="-1">${esc(c.tip_thanks || '')}</p>` : '') +
     `<p>${esc(c.support_intro || '')}</p>
     ${costs.length ? `<h2>What it costs to run</h2><dl class="costs">${costs.map(([k, v]) => `<div><dt>${esc(k)}</dt><dd>${esc(v || '')}</dd></div>`).join('')}</dl>` : ''}
-    <h2>Leave a tip</h2>
-    ${tips.length ? `<div class="tips">${tips.map((t, i) => `<button class="tip" data-tip="${i}" aria-label="Tip ${esc(t.price)}">${esc(t.price)}</button>`).join('')}</div>`
+    <h2>${esc(c.support_cta || '')}</h2>
+    ${tips.length ? `<div class="tips">${tips.map((t, i) => `<button class="tip" data-tip="${i}" aria-label="${esc(c.support_cta || '')}: ${esc(t.price)}">${esc(t.price)}</button>`).join('')}</div>`
       : `<p class="small tight">${esc(c.tips_unavailable || '')}</p>`}`, !thanks);
   if (thanks) $('#settings .thanks')?.focus();
 }
