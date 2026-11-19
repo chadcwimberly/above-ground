@@ -77,11 +77,11 @@ costing a production deploy.)
 - `tip_options` rows: iOS/Android name the consumable product IDs `app.aboveground.tip.small|medium|large`;
   the web rows hold Stripe Payment Links. A row shows only when `is_active` is true and, on the web, has a `url`;
   in the apps, only when the store returns the product.
-- Copy (`support_intro`, `support_cta`, `support_costs` as "Item: cost" lines, `tip_card`, `tip_card_button`,
+- Copy (`support_intro`, `support_cta` (the "Leave a Tip" label), `tip_card`, `tip_card_button`,
   `tip_thanks`, `tips_unavailable`, `contact_email`, `contact_line`) lives in `app_copy`.
-- **Wording: "contribute"/"contribution", never "donate"/"donation".** Chad is an individual, not a charity: Stripe
+- **Wording: buttons say "Leave a Tip"; body text says "contribution(s)"; never "donate"/"donation".** Chad is an individual, not a charity: Stripe
   allows donations only for a charitable purpose, Apple only for approved nonprofits, and the money covers hosting.
-  Don't promise how funds are used beyond that. (Code and table names keep the internal word "tip".) Update `support_costs` when running costs change.
+  Don't promise how funds are used beyond that. (Code and table names keep the internal word "tip".) (`support_costs` is no longer shown in the app.)
 - Card rules are in `tipCardDue()` in `src/main.js`. Purchases use `@capgo/native-purchases` (StoreKit 2 /
   Play Billing, no receipt server; tips are consumed right away).
 

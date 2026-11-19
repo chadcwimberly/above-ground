@@ -557,11 +557,9 @@ async function supportView(note = '', thanks = false) {
   const c = data?.copy || {};
   if (!$('#settings .sub-title:not(.menu-title)')) setBody(sub('Support Above Ground') + '<p class="small">Loading…</p>');
   const tips = tipList || await loadTips().catch(() => []);
-  const costs = (c.support_costs || '').split('\n').filter(Boolean).map(l => l.split(/:\s*/));
   setBody(sub('Support Above Ground') + (note ? `<p class="small" role="status">${esc(note)}</p>` : '') +
     (thanks ? `<p class="thanks" tabindex="-1">${esc(c.tip_thanks || '')}</p>` : '') +
     `<p>${esc(c.support_intro || '')}</p>
-    ${costs.length ? `<h2>What it costs to run</h2><dl class="costs">${costs.map(([k, v]) => `<div><dt>${esc(k)}</dt><dd>${esc(v || '')}</dd></div>`).join('')}</dl>` : ''}
     <h2>${esc(c.support_cta || '')}</h2>
     ${tips.length ? `<div class="tips">${tips.map((t, i) => `<button class="tip" data-tip="${i}" aria-label="${esc(c.support_cta || '')}: ${esc(t.price)}">${esc(t.price)}</button>`).join('')}</div>`
       : `<p class="small tight">${esc(c.tips_unavailable || '')}</p>`}`, !thanks);
