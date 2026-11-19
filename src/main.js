@@ -9,7 +9,7 @@ import { createClient } from '@supabase/supabase-js';
 import { isNative, platform, restoreSaved, mirror, authStorage, syncSystemBars, appReady, onBackButton, onAppPause,
   canVibrate, tap, followSystemTextSize, canRemind, scheduleReminders, guessCountry,
   onDeepLink, healthAvailable, requestHealth, logMindful, clearSaved, saveFile, canScan, tipProducts, buyTip } from './platform.js';
-import { newCode, normalize, isValid, hashCode, syncLink, wordsFromLink, qrSvg, scanQR, wordlist } from './sync.js';
+import { SITE, newCode, normalize, isValid, hashCode, syncLink, wordsFromLink, qrSvg, scanQR, wordlist } from './sync.js';
 
 // In the native apps, bring back saved settings, content and the event queue before anything reads them.
 await restoreSaved();
@@ -326,6 +326,10 @@ function buildSettings(note = '') {
     ${online ? '' : '<p class="small tight">Sync and privacy tools need an internet connection.</p>'}
     <p class="small">Above Ground offers support for everyday moments. It isn't a replacement for professional care.
       <button class="link" data-a="help">Need more help?</button></p>
+    ${data?.copy?.contact_email ? `<h2>Contact</h2><p class="small tight">${esc(data.copy.contact_line || '')}
+      <a href="mailto:${esc(data.copy.contact_email)}">${esc(data.copy.contact_email)}</a></p>` : ''}
+    <p class="small"><a href="${SITE}/privacy" target="_blank" rel="noopener">Privacy policy</a> ·
+      <a href="${SITE}/support" target="_blank" rel="noopener">Support</a></p>
     <p class="small">Device: ${deviceId ? (deviceName ? `${esc(deviceName)} (${deviceId.slice(0, 8)})` : deviceId.slice(0, 8)) : 'offline mode'}<br>
     Last Updated: ${version ? `${esc(fmtRelease(version.releasedAt))} (${esc(version.version)})` : 'unknown'}</p>
     <button class="soft" data-close>Close</button>`;
@@ -529,7 +533,9 @@ $('#settings').addEventListener('input', e => {
 // session where "Need more help?" was opened, and never again after "Don't show again". State syncs in the profile.
 let tipList = null; // [{ label, price, productId?, url? }] available on this device
 async function loadTips() {
-  const rows = (data?.tips || []).filter(t => t.platform === (isNative ? platform : 'web'));
+  // The live website uses the 'web' rows; previews and local builds use the test-mode 'web-test' rows.
+  const live = /(^|\.)aboveground\.app$|^above-ground\.netlify\.app$/.test(location.hostname);
+  const rows = (data?.tips || []).filter(t => t.platform === (isNative ? platform : live ? 'web' : 'web-test'));
   if (!isNative) return (tipList = rows.filter(t => t.url).map(t => ({ label: t.label, price: t.label, url: t.url })));
   const products = await tipProducts(rows.map(t => t.product_id).filter(Boolean));
   return (tipList = rows.map(t => ({ t, p: products.find(p => p.identifier === t.product_id) })).filter(x => x.p)

@@ -4,6 +4,13 @@ All notable changes to Above Ground. Versions follow [Semantic Versioning](https
 MAJOR for changes that break saved data or flows, MINOR for new features, PATCH for fixes.
 The exact time each version went live is shown in the app under Settings → Last Updated.
 
+## 1.10.0 — 2026-11-18
+- Privacy policy and support pages at `aboveground.app/privacy` and `aboveground.app/support` (both stores need
+  them), linked from the bottom of Settings.
+- Settings shows a contact line with hello@aboveground.app (text and address live in `app_copy`).
+- Website tips: the live site uses the `web` tip rows, while deploy previews and local builds use new `web-test`
+  rows holding Stripe test-mode links, so the tip flow can be tried without real payments.
+
 ## 1.9.0 — 2026-11-17
 - Smooth motion throughout: screens slide forward and back (View Transitions where supported, a gentle rise
   elsewhere) while the header stays still; Settings and "Need more help?" slide up as sheets and back down;

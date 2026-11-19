@@ -141,8 +141,10 @@ an optional later step. Build numbers come from `scripts/sync-native-version.mjs
 - The domain must also be added under Netlify → Domain management for the site. Netlify then issues HTTPS.
 - Email: ImprovMX free plan with a catch-all `*` forwarding to Chad's Gmail. It's receive-only; replies go from
   Gmail. Forward Email is the alternative if he wants to send as @aboveground.app.
-- Once the domain is live, use https://aboveground.app in docs and links. The old netlify.app address keeps
-  working, but saved settings don't carry over between the two addresses.
+- The domain is live: use https://aboveground.app in docs and links. The old netlify.app address keeps
+  working, but saved settings don't carry over between the two addresses (sync codes bridge them).
+- Email: ImprovMX forwards every address @aboveground.app to Chad's Gmail; the public address is
+  hello@aboveground.app (`app_copy.contact_email`, privacy and support pages).
 
 ## 8. Sandbox limits (Claude sessions)
 
@@ -159,13 +161,16 @@ Chad's own steps (accounts, DNS, store setup, secrets) are numbered in the "All 
 Human Tasks doc: https://claude.ai/artifact/Uov4eGeBoRhFziy9vH6qYk. Keep it in step with this list.
 
 
-- [ ] Chad confirms the Netlify domain + GoDaddy DNS; then verify https://aboveground.app and switch the docs to it.
-- [ ] Chad sets up ImprovMX; then send a test email to any@aboveground.app.
+- [x] aboveground.app live on Netlify with HTTPS.
+- [x] Email forwarding (ImprovMX).
 - [x] "Why this works" summaries approved and loaded for all 56 exercises (2026-11-17).
 - [x] Smooth animations (1.9.0). Motion lives in the "Motion" block of `index.html` and `swap()` in `src/main.js`;
   everything must stay off under reduced motion.
-- [ ] Privacy and support pages for aboveground.app (needs Chad's contact email).
-- [ ] Web tip links into `tip_options` (needs Chad's three payment links).
+- [x] Privacy and support pages (`public/privacy/`, `public/support/`, styled by `public/pages.css`), contact
+  hello@aboveground.app (1.10.0). Update the privacy policy whenever what the app stores changes.
+- [ ] Live web tip links: Stripe test-mode links are in the `web-test` rows (previews/local). Put the live links
+  in the three `web` rows (`update tip_options set url = … where platform = 'web' and label = '$2'`) once Chad
+  activates Stripe.
 - [ ] Universal Links / App Links for `aboveground.app/sync` (needs the Apple Team ID and the Play app-signing SHA-256).
 - [x] Sync code (12 words + QR) and delete-my-data (1.7.0).
 - [x] Tip jar (1.8.0). Goes live per platform once the store products / web payment links exist (see below).
