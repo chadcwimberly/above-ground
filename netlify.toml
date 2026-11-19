@@ -1,5 +1,10 @@
 # The website. `npm run build` stamps public/version.json (version + release time), gives the service worker a
 # per-release cache name, then Vite builds the app into dist/, which Netlify serves.
+# Production deploys cost 15 credits each on the free plan (300 a month); previews are free. Skip production
+# builds when only docs, workflows, database migrations or the native projects changed.
+[context.production]
+  ignore = "bash ./scripts/netlify-skip-build.sh"
+
 [build]
   command = "npm run build"
   publish = "dist"
