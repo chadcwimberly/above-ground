@@ -8,6 +8,12 @@ The exact time each version went live is shown in the app under Settings → Las
 - Privacy policy and support pages at `aboveground.app/privacy` and `aboveground.app/support` (both stores need
   them), linked from the bottom of Settings. On the website the links stay on the site being viewed (so a deploy
   preview opens its own pages); the apps open aboveground.app.
+- Settings and "Need more help?" open as a centered modal with an X in the corner (no more bottom drawer or
+  Close button). Buttons inside them use a smaller menu size, and every text button in the app now shares one
+  corner radius (icon buttons stay round).
+- Sync code: the 12 words sit in one box (shown read-only with a word count and copy button, or typed/pasted
+  when linking, with a live count that flags words not in the list); the QR code uses round dots and rounded
+  corners on a light tile so it scans in every theme.
 - Settings shows a contact line with hello@aboveground.app (text and address live in `app_copy`).
 - Website tips: the live site uses the `web` tip rows, while deploy previews and local builds use new `web-test`
   rows holding Stripe test-mode links, so the tip flow can be tried without real payments.

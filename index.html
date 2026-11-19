@@ -15,7 +15,7 @@
 <meta property="og:type" content="website">
 <style>
 /* Themes (saved as "palette"): Hearth (default, warm browns), Moss, Tide, Pine (bright), Dusk (dark) */
-:root{--bg:#d8c6b2;--surface:#e5d7c6;--ink:#3a2b21;--mute:#5f4a39;--accent:#6f4a33;--on:#f6ece1;--font:'Lora',Georgia,serif}
+:root{--radius:1rem;--btn-font:1.1rem;--btn-py:.7rem;--btn-px:1.2rem;--bg:#d8c6b2;--surface:#e5d7c6;--ink:#3a2b21;--mute:#5f4a39;--accent:#6f4a33;--on:#f6ece1;--font:'Lora',Georgia,serif}
 [data-palette=moss]{--bg:#cfd6c8;--surface:#dde3d6;--ink:#2b3328;--mute:#4f5d4c;--accent:#4f6b50;--on:#f4f7f1}
 [data-palette=tide]{--bg:#cdd8de;--surface:#dbe4e9;--ink:#23323b;--mute:#46596a;--accent:#3f6477;--on:#f2f7fa}
 [data-palette=pine]{--bg:#1f2a27;--surface:#2a3733;--ink:#dfe8e3;--mute:#9bb0a6;--accent:#8fb8a3;--on:#1b2421}
@@ -48,7 +48,7 @@ main.has-blob{overflow:visible}
 h1{font-size:1.8rem;font-weight:500;line-height:1.2;margin:0 0 .75rem}
 ol{padding-left:1.3rem;margin:.5rem 0}
 li{margin:.7rem 0;padding-left:.2rem}
-input{width:100%;padding:.8rem 1rem;margin-bottom:.6rem;border-radius:.9rem;background:var(--surface);
+input{width:100%;padding:.8rem 1rem;margin-bottom:.6rem;border-radius:var(--radius);background:var(--surface);
   border:1px solid color-mix(in srgb,var(--ink) 25%,transparent)}
 .aff,.msg{font-size:2rem;line-height:1.3}
 .lead{font-size:1.15rem;color:var(--mute);margin:0 0 1.25rem}
@@ -72,28 +72,36 @@ input{width:100%;padding:.8rem 1rem;margin-bottom:.6rem;border-radius:.9rem;back
 /* Welcome: greeting + three "what do you need" choices */
 .welcome h1{font-size:2rem;margin:0 0 2rem}
 .needs{display:flex;flex-direction:column;gap:.9rem;text-align:left}
-.need{width:100%;min-height:4rem;padding:.9rem 1.4rem;border:0;border-radius:1.5rem;background:var(--surface);font-size:1.25rem;font-weight:500}
+.need{width:100%;min-height:4rem;padding:.9rem 1.4rem;border:0;border-radius:var(--radius);background:var(--surface);font-size:1.25rem;font-weight:500}
 .need:active{background:var(--accent);color:var(--on)}
 main[aria-busy=true]{opacity:.6;transition:opacity .2s}
 
 footer{position:relative;z-index:1;padding:.5rem 1.5rem 1.25rem}
 footer:empty{padding:0}
 .tools{display:flex;justify-content:center;gap:.9rem;margin-bottom:1rem}
-.cta{width:100%;min-height:4.25rem;border:0;border-radius:1.5rem;background:var(--accent);color:var(--on);font-size:1.4rem;font-weight:500}
-.soft{margin-top:.75rem;padding:.7rem 1.2rem;border-radius:1rem;background:transparent;border:1px solid var(--accent)}
+.cta{width:100%;min-height:4.25rem;border:0;border-radius:var(--radius);background:var(--accent);color:var(--on);font-size:1.4rem;font-weight:500}
+.soft{margin-top:.75rem;padding:var(--btn-py) var(--btn-px);border-radius:var(--radius);background:transparent;border:1px solid var(--accent);font-size:var(--btn-font)}
 footer .soft{display:block;margin:.75rem auto 0}
 
-dialog{margin:auto auto 0;width:100%;max-width:32rem;border:0;border-radius:1.5rem 1.5rem 0 0;padding:0;background:var(--surface);color:var(--ink)}
+/* Settings and "Need more help?" open as a centered modal with an X in the corner. Inside it, buttons use the
+   smaller menu size (the --btn-* tokens); every text button app-wide shares --radius, icon buttons are circles. */
+dialog{margin:auto;width:calc(100% - 2rem);max-width:30rem;border:0;border-radius:1.5rem;padding:0;overflow:hidden;
+  background:var(--surface);color:var(--ink);box-shadow:0 1.5rem 3rem rgb(0 0 0/.25);
+  --btn-font:.95rem;--btn-py:.45rem;--btn-px:.85rem}
+dialog .x{position:absolute;top:.6rem;right:.6rem;z-index:1;background:var(--surface)}
+dialog .x:hover{background:var(--bg)}
 dialog::backdrop{background:rgb(0 0 0/.35)}
-.body{padding:1.5rem 1.5rem calc(1.5rem + var(--safe-area-inset-bottom,env(safe-area-inset-bottom)))}
+.body{padding:1.25rem 1.5rem 1.5rem;overflow-y:auto;overscroll-behavior:contain;
+  max-height:calc(100dvh - 2rem - var(--safe-area-inset-top,env(safe-area-inset-top)) - var(--safe-area-inset-bottom,env(safe-area-inset-bottom)))}
+.body>:first-child{margin-top:0;padding-right:2.5rem}
 h2{font-size:1.1rem;font-weight:500;margin:1rem 0 .5rem;color:var(--mute)}
 .opts{display:flex;flex-wrap:wrap;gap:.6rem}
-.opt{--pl:.6rem;display:flex;align-items:center;gap:.55rem;padding:.55rem 1rem .55rem var(--pl);border-radius:2rem;background:transparent;
+.opt{--pl:.5rem;display:flex;align-items:center;gap:.5rem;padding:var(--btn-py) var(--btn-px) var(--btn-py) var(--pl);border-radius:var(--radius);background:transparent;font-size:var(--btn-font);
   border:1px solid color-mix(in srgb,var(--ink) 25%,transparent)}
-.opt.text{--pl:1rem} /* no swatch: equal padding left and right */
-.opt[aria-pressed=true]{border:2px solid var(--accent);padding:calc(.55rem - 1px) calc(1rem - 1px) calc(.55rem - 1px) calc(var(--pl) - 1px)}
+.opt.text{--pl:var(--btn-px)} /* no swatch: equal padding left and right */
+.opt[aria-pressed=true]{border:2px solid var(--accent);padding:calc(var(--btn-py) - 1px) calc(var(--btn-px) - 1px) calc(var(--btn-py) - 1px) calc(var(--pl) - 1px)}
 /* Swatch: fixed square box so it stays a true circle; the ring is drawn on top of the colors so they can't clip it */
-.sw{flex:none;box-sizing:border-box;width:1.5rem;height:1.5rem;border-radius:50%;
+.sw{flex:none;box-sizing:border-box;width:1.25rem;height:1.25rem;border-radius:50%;
   box-shadow:inset 0 0 0 1px color-mix(in srgb,var(--ink) 35%,transparent)}
 .small{font-size:.9rem;color:var(--mute);margin:1rem 0 .75rem}
 
@@ -101,14 +109,14 @@ h2{font-size:1.1rem;font-weight:500;margin:1rem 0 .5rem;color:var(--mute)}
 header{align-items:center}
 .help-link{border:0;background:transparent;color:var(--mute);font-size:.9rem;padding:.6rem .5rem;min-height:2.75rem;text-decoration:underline;text-underline-offset:3px}
 .link{border:0;background:transparent;color:inherit;padding:0;text-decoration:underline;text-underline-offset:3px;font-size:inherit}
-.help-title{font-size:1.5rem;margin:.25rem 0 .5rem}
+.help-title{font-size:1.35rem;margin:.25rem 0 .5rem}
 .help-title:focus{outline:none}
 .line{background:var(--bg);border-radius:1.25rem;padding:1rem 1.1rem;margin:.9rem 0}
 .line .name{font-weight:500;margin:0 0 .25rem}
 .line p{margin:0 0 .5rem}
 .ways{display:flex;flex-direction:column;gap:.5rem;margin-top:.5rem}
 .ways a{display:grid;place-items:center;text-decoration:none;text-align:center}
-.ways .cta{min-height:3.5rem;font-size:1.2rem}
+.ways .cta{min-height:2.9rem;font-size:calc(var(--btn-font) * 1.1)}
 .ways .soft{margin:0;color:var(--ink)}
 .country select{margin-left:.35rem;padding:.4rem .6rem;border-radius:.6rem;background:var(--bg);color:var(--ink);border:1px solid color-mix(in srgb,var(--ink) 25%,transparent);font:inherit}
 
@@ -142,28 +150,24 @@ header{align-items:center}
 .back-link{display:inline-block;margin-bottom:.5rem;font-size:.95rem;color:var(--mute)}
 .sub-title{font-size:1.4rem;font-weight:500;margin:.25rem 0 .75rem;outline:none}
 .secret{display:grid;gap:1rem;justify-items:center;margin:.5rem 0 .25rem}
-.secret[data-hidden] .words,.secret[data-hidden] .qr{filter:blur(7px);user-select:none;pointer-events:none}
-.words{list-style:none;counter-reset:w;display:grid;grid-template-columns:repeat(3,1fr);gap:.4rem .6rem;width:100%;margin:0;padding:0}
-@media (min-width:26rem){.words{grid-template-columns:repeat(4,1fr)}}
-.words li{counter-increment:w;background:var(--bg);border-radius:.7rem;padding:.4rem .45rem;font-size:.95rem;white-space:nowrap;transition:filter .3s}
-.words li::before{content:counter(w);display:inline-block;min-width:1.25em;color:var(--mute);font-size:.75rem}
-.qr{width:11rem;max-width:60%;transition:filter .3s}.qr svg{display:block;width:100%;height:auto}
+.secret[data-hidden] .code,.secret[data-hidden] .qr{filter:blur(7px);user-select:none;pointer-events:none}
+.codebox{width:100%;border:1px solid color-mix(in srgb,var(--ink) 25%,transparent);border-radius:var(--radius);background:var(--bg);padding:.6rem .6rem .35rem}
+.code{display:block;width:100%;min-height:6.5rem;resize:vertical;border:0;background:transparent;color:var(--ink);font:500 1.05rem/1.55 var(--font);padding:.2rem .3rem;transition:filter .3s}
+.code:focus{outline:none}.codebox:focus-within{outline:3px solid var(--accent);outline-offset:2px}
+.code-meta{display:flex;justify-content:space-between;align-items:center;min-height:2.75rem;font-size:.85rem;color:var(--mute);padding-left:.3rem}
+.code-meta .warn{color:inherit;font-weight:600}
+.copy{width:2.5rem;height:2.5rem;margin-left:auto}.copy.done{color:var(--accent)}
+.qr{width:12rem;max-width:70%;padding:.6rem;border-radius:var(--radius);background:#f6efe6;transition:filter .3s}.qr svg{display:block;width:100%;height:auto}
 .devices{list-style:none;padding:0;margin:.25rem 0 1rem}
 .devices li{display:flex;justify-content:space-between;align-items:center;gap:1rem;padding:.6rem 0;border-bottom:1px solid color-mix(in srgb,var(--ink) 15%,transparent)}
 .devices em{color:var(--mute);font-style:normal;font-size:.9rem}
-.word-inputs{display:grid;grid-template-columns:repeat(2,1fr);gap:.5rem .75rem;margin:.5rem 0}
-@media (min-width:26rem){.word-inputs{grid-template-columns:repeat(3,1fr)}}
-.word-inputs label{display:flex;align-items:center;gap:.35rem}
-.word-inputs span{min-width:1.3em;text-align:right;color:var(--mute);font-size:.85rem}
-.word-inputs input{width:100%;min-width:0;min-height:2.75rem;padding:.4rem .6rem;border-radius:.7rem;border:1px solid color-mix(in srgb,var(--ink) 25%,transparent);background:var(--bg);color:var(--ink);font:inherit;font-size:1rem}
-.word-inputs input::-webkit-calendar-picker-indicator{display:none!important}
 .scan{margin:.75rem 0}.scan video{display:block;width:100%;max-height:16rem;object-fit:cover;border-radius:1rem;background:#000;margin-bottom:.5rem}
 .danger{border-color:#a3412f;color:inherit}
 [data-palette=pine] .danger,[data-palette=dusk] .danger{border-color:#e08a78}
 .costs{margin:.25rem 0 1rem}.costs div{display:flex;justify-content:space-between;gap:1rem;padding:.45rem 0;border-bottom:1px solid color-mix(in srgb,var(--ink) 15%,transparent)}
 .costs dt{color:var(--ink)}.costs dd{margin:0;color:var(--mute);text-align:right}
-.tips{display:grid;grid-template-columns:repeat(3,1fr);gap:.75rem;margin:.5rem 0 1rem}
-.tip{min-height:3.5rem;border:0;border-radius:1.25rem;background:var(--accent);color:var(--on);font-size:1.25rem;font-weight:500}
+.tips{display:grid;grid-template-columns:repeat(3,1fr);gap:.6rem;margin:.5rem 0 1rem}
+.tip{min-height:2.9rem;border:0;border-radius:var(--radius);background:var(--accent);color:var(--on);font-size:calc(var(--btn-font) * 1.15);font-weight:500}
 .thanks{font-size:1.2rem;background:var(--bg);border-radius:1.25rem;padding:1rem 1.1rem;outline:none}
 .tipcard{margin-top:2rem;padding:1.1rem 1.2rem;border-radius:1.5rem;background:var(--surface);text-align:center}
 .tipcard p{margin:0 0 .25rem;font-size:1.05rem}
@@ -174,7 +178,7 @@ header{align-items:center}
   animation:bar-in .45s var(--ease-out);z-index:10}
 .update[hidden]{display:none}
 .update p{margin:0;flex:1;font-size:1rem;line-height:1.35}
-.update button{border:0;border-radius:.9rem;padding:.6rem 1rem;background:var(--accent);color:var(--on);font-weight:500;white-space:nowrap}
+.update button{border:0;border-radius:var(--radius);padding:.6rem 1rem;background:var(--accent);color:var(--on);font-weight:500;white-space:nowrap}
 .update .later{background:transparent;color:var(--ink);padding:.6rem .5rem}
 .sr{position:absolute;width:1px;height:1px;margin:-1px;overflow:hidden;clip:rect(0 0 0 0);white-space:nowrap}
 
@@ -202,10 +206,10 @@ body,dialog,.need,.tool,.line,.why,.tipcard{transition:background-color .45s eas
 .need,.cta,.soft,.opt,.tool,.tip,.icon{transition:transform .16s var(--ease-out),background-color .3s ease,color .3s ease,border-color .3s ease}
 .need:active,.cta:active,.soft:active,.opt:active,.tool:active,.tip:active,.icon:active{transform:scale(.96)}
 .tool[aria-pressed=true]{animation:pop .4s var(--ease-out)}
-/* Sheets (Settings, Need more help?) slide up and back down; the dimmed background fades */
-dialog{transition:transform .4s var(--ease-out),background-color .45s ease,overlay .4s allow-discrete,display .4s allow-discrete}
-dialog:not([open]){transform:translateY(100%)}
-@starting-style{dialog[open]{transform:translateY(100%)}}
+/* Settings and "Need more help?" fade and grow in; the dimmed background fades */
+dialog{transition:transform .3s var(--ease-out),opacity .25s ease,background-color .45s ease,overlay .3s allow-discrete,display .3s allow-discrete}
+dialog:not([open]){transform:scale(.96);opacity:0}
+@starting-style{dialog[open]{transform:scale(.96);opacity:0}}
 dialog::backdrop{background:rgb(0 0 0/0);transition:background-color .4s ease,overlay .4s allow-discrete,display .4s allow-discrete}
 dialog[open]::backdrop{background:rgb(0 0 0/.35)}
 @starting-style{dialog[open]::backdrop{background:rgb(0 0 0/0)}}
@@ -250,8 +254,8 @@ dialog[open]::backdrop{background:rgb(0 0 0/.35)}
   <main id="main" aria-live="polite"></main>
   <footer id="foot"></footer>
 </div>
-<dialog id="settings" aria-label="Settings"><div class="body"></div></dialog>
-<dialog id="help" aria-label="Need more help?"><div class="body"></div></dialog>
+<dialog id="settings" aria-label="Settings"><button class="icon x" data-close aria-label="Close"><svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><path d="M6 6l12 12M18 6L6 18"/></svg></button><div class="body"></div></dialog>
+<dialog id="help" aria-label="Need more help?"><button class="icon x" data-close aria-label="Close"><svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><path d="M6 6l12 12M18 6L6 18"/></svg></button><div class="body"></div></dialog>
 <div id="update" class="update" role="region" aria-label="Update available" hidden>
   <p>A new version of Above Ground is ready.</p>
   <button class="later" data-update="later">Later</button>

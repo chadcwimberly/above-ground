@@ -10,6 +10,7 @@ import { isNative, platform, restoreSaved, mirror, authStorage, syncSystemBars, 
   canVibrate, tap, followSystemTextSize, canRemind, scheduleReminders, guessCountry,
   onDeepLink, healthAvailable, requestHealth, logMindful, clearSaved, saveFile, canScan, tipProducts, buyTip } from './platform.js';
 import { SITE, newCode, normalize, isValid, hashCode, syncLink, wordsFromLink, qrSvg, scanQR, wordlist } from './sync.js';
+const WORDS = new Set(wordlist);
 
 // In the native apps, bring back saved settings, content and the event queue before anything reads them.
 await restoreSaved();
@@ -308,7 +309,7 @@ function buildSettings(note = '') {
   if (sv === 'privacy') return privacyView(note);
   if (sv === 'support') return supportView(note);
   const r = prefs.reminders, online = !!(sb && deviceId);
-  $('#settings .body').innerHTML = `<h2>Theme</h2><div class="opts">${P.map(p =>
+  $('#settings .body').innerHTML = `<h1 class="sub-title menu-title">Settings</h1><h2>Theme</h2><div class="opts">${P.map(p =>
     `<button class="opt" data-p="${p[0]}" aria-pressed="${prefs.palette === p[0]}"><span class="sw" style="background:linear-gradient(135deg,${p[2]} 50%,${p[3]} 50%)"></span>${p[1]}</button>`).join('')}</div>
     <h2>Font</h2><div class="opts">${F.map(f =>
     `<button class="opt text" data-f="${f[0]}" aria-pressed="${prefs.font === f[0]}" style="font-family:'${f[2]}',sans-serif">${f[1]}</button>`).join('')}</div>
@@ -334,8 +335,7 @@ function buildSettings(note = '') {
     <p class="small"><a href="${pageBase}/privacy/" target="_blank" rel="noopener">Privacy policy</a> ·
       <a href="${pageBase}/support/" target="_blank" rel="noopener">Support</a></p>
     <p class="small">Device: ${deviceId ? (deviceName ? `${esc(deviceName)} (${deviceId.slice(0, 8)})` : deviceId.slice(0, 8)) : 'offline mode'}<br>
-    Last Updated: ${version ? `${esc(fmtRelease(version.releasedAt))} (${esc(version.version)})` : 'unknown'}</p>
-    <button class="soft" data-close>Close</button>`;
+    Last Updated: ${version ? `${esc(fmtRelease(version.releasedAt))} (${esc(version.version)})` : 'unknown'}</p>`;
 }
 async function updateReminders(ask) {
   const ok = await scheduleReminders(prefs.reminders, data?.reminders, ask);
@@ -356,9 +356,12 @@ function openSettings(view = 'main', words = '') {
 $('#settings').addEventListener('close', () => { sv = 'main'; stopScan() });
 // Settings pages slide in from the side they lead to.
 function slideBody(dir) {
-  const b = $('#settings .body'); $('#settings').scrollTop = 0;
+  const b = $('#settings .body'); b.scrollTop = 0;
   b.classList.remove('enter-fwd', 'enter-back'); void b.offsetWidth; b.classList.add('enter-' + dir);
 }
+const COPY_BTN = `<button class="icon copy" data-s="copy" aria-label="Copy sync code"><svg viewBox="0 0 24 24" width="20" height="20" fill="none"
+  stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="8" y="8" width="12" height="12" rx="2.5"/>
+  <path d="M16 8V6.5A2.5 2.5 0 0 0 13.5 4h-7A2.5 2.5 0 0 0 4 6.5v7A2.5 2.5 0 0 0 6.5 16H8"/></svg></button>`;
 const sub = title => `<button class="link back-link" data-v="main">‹ Settings</button><h1 class="sub-title" tabindex="-1">${esc(title)}</h1>`;
 const setBody = (html, focus = true) => { const b = $('#settings .body'); b.innerHTML = html; if (focus) b.querySelector('.sub-title')?.focus() };
 const offlineNote = title => setBody(sub(title) + `<p>This needs an internet connection. Please try again when you're online.</p>`);
@@ -381,7 +384,7 @@ async function devicesHtml() {
 async function syncView(note = '', confirm = false) {
   const title = 'Your sync code';
   if (!sb || !deviceId || !navigator.onLine) return offlineNote(title);
-  if (!$('#settings .sub-title')) setBody(sub(title) + '<p class="small">Loading…</p>');
+  if (!$('#settings .sub-title:not(.menu-title)')) setBody(sub(title) + '<p class="small">Loading…</p>');
   try {
     await loadProfile();
     let words = store.get('syncWords', '');
@@ -394,13 +397,14 @@ async function syncView(note = '', confirm = false) {
       return setBody(sub(title) + (note ? `<p class="small" role="status">${esc(note)}</p>` : '') +
         `<p>Your sync code was made on another device. Open Settings there to see it, or make a new code here.</p>${replace}${await devicesHtml()}`);
     }
-    const list = normalize(words).split(' ');
-    const qr = await qrSvg(syncLink(words), getComputedStyle(document.documentElement).getPropertyValue('--ink').trim());
+    const qr = await qrSvg(syncLink(words));
     setBody(sub(title) + (note ? `<p class="small" role="status">${esc(note)}</p>` : '') +
       `<p class="small tight">On your other device, open Settings → I have a sync code, then type these words or scan the QR code.</p>
-      <div class="secret" data-hidden><ol class="words">${list.map(w => `<li>${esc(w)}</li>`).join('')}</ol>
+      <div class="secret" data-hidden>
+        <div class="codebox"><textarea class="code" readonly rows="4" aria-label="Your 12-word sync code">${esc(normalize(words))}</textarea>
+          <div class="code-meta"><span>Word count: 12</span>${COPY_BTN}</div></div>
         <div class="qr" role="img" aria-label="QR code with your sync link">${qr}</div></div>
-      <div class="opts"><button class="soft" data-s="reveal" aria-pressed="false">Reveal</button><button class="soft" data-s="copy">Copy words</button></div>
+      <div class="opts"><button class="soft" data-s="reveal" aria-pressed="false">Reveal code</button></div>
       <p class="small">Anyone with these words can see and change your synced settings. Keep them somewhere private.
         If you lose every linked device, the code is gone too.</p>
       ${replace}${await devicesHtml()}`);
@@ -412,21 +416,24 @@ function stopScan() { scanning?.abort(); scanning = null; const s = $('#settings
 function joinView(prefill = '', note = '') {
   const title = 'I have a sync code';
   if (!sb || !deviceId || !navigator.onLine) return offlineNote(title);
-  const w = normalize(prefill).split(' ').filter(Boolean);
-  if (!$('#bip39')) document.body.insertAdjacentHTML('beforeend', `<datalist id="bip39">${wordlist.map(x => `<option value="${x}">`).join('')}</datalist>`);
-  setBody(sub(title) + `<p class="small tight">On your other device, open Settings → Show my sync code. Type its 12 words here${canScan ? ', or scan its QR code' : ''}.</p>
-    <div class="word-inputs">${Array.from({ length: 12 }, (_, i) => `<label><span aria-hidden="true">${i + 1}</span><input data-w="${i}" list="bip39"
-      autocomplete="off" autocapitalize="none" autocorrect="off" spellcheck="false" enterkeyhint="next" aria-label="Word ${i + 1}" value="${esc(w[i] || '')}"></label>`).join('')}</div>
+  setBody(sub(title) + `<p class="small tight">On your other device, open Settings → Show my sync code. Enter its 12 words here${canScan ? ', or scan its QR code' : ''}.</p>
+    <div class="codebox"><textarea class="code" id="join-code" rows="4" autocomplete="off" autocapitalize="none" autocorrect="off" spellcheck="false"
+      aria-label="Sync code words" aria-describedby="join-count" placeholder="Type or paste the 12 words, separated by spaces">${esc(normalize(wordsFromLink(prefill) || prefill))}</textarea>
+      <div class="code-meta"><span id="join-count" aria-live="polite"></span></div></div>
     ${canScan ? `<button class="soft" data-s="scan">Scan a QR code</button><div class="scan" hidden><video muted playsinline></video>
       <button class="link" data-s="scan-stop">Stop scanning</button></div>` : ''}
     <p class="small" role="status" id="join-note">${esc(note)}</p>
     <div id="join-act"><button class="cta" data-s="join">Link this device</button></div>`);
+  codeCount();
 }
-const joinWords = () => [...document.querySelectorAll('[data-w]')].map(i => i.value).join(' ');
-function fillWords(text, from = 0) {
-  const w = normalize(wordsFromLink(text) || text).split(' ').filter(Boolean), inputs = document.querySelectorAll('[data-w]');
-  w.slice(0, 12 - from).forEach((x, i) => { inputs[from + i].value = x });
-  inputs[Math.min(11, from + w.length)]?.focus();
+const joinWords = () => $('#join-code')?.value || '';
+function fillWords(text) { const t = $('#join-code'); t.value = normalize(wordsFromLink(text) || text); codeCount(); t.focus() }
+// Live word count, and which words (if any) aren't in the word list, so typos show up before linking.
+function codeCount() {
+  const t = $('#join-code'), out = $('#join-count'); if (!t || !out) return;
+  const w = normalize(t.value).split(' ').filter(Boolean), odd = w.filter(x => !WORDS.has(x));
+  out.textContent = `Word count: ${w.length} of 12` + (odd.length ? ` · Check: ${odd.slice(0, 3).join(', ')}` : '');
+  out.classList.toggle('warn', odd.length > 0 || w.length > 12);
 }
 async function doJoin(keep) {
   const note = t => { $('#join-note').textContent = t }, words = joinWords();
@@ -481,8 +488,8 @@ $('#settings').addEventListener('click', async e => {
   if (!b) return;
   const s = b.dataset.s;
   try {
-    if (s === 'reveal') { const box = $('.secret'), on = box.hasAttribute('data-hidden'); box.toggleAttribute('data-hidden', !on); b.textContent = on ? 'Hide' : 'Reveal'; b.setAttribute('aria-pressed', on) }
-    if (s === 'copy') { await navigator.clipboard.writeText(normalize(store.get('syncWords', ''))); b.textContent = 'Copied' }
+    if (s === 'reveal') { const box = $('.secret'), on = box.hasAttribute('data-hidden'); box.toggleAttribute('data-hidden', !on); b.textContent = on ? 'Hide code' : 'Reveal code'; b.setAttribute('aria-pressed', on) }
+    if (s === 'copy') { await navigator.clipboard.writeText(normalize(store.get('syncWords', ''))); b.setAttribute('aria-label', 'Copied'); b.classList.add('done'); announce('Sync code copied') }
     if (s === 'newcode') syncView('', true);
     if (s === 'newcode-yes') { await makeCode(); syncView('Your new code is ready. Linked devices stay linked.') }
     if (s === 'unlink') { b.disabled = true; await sb.rpc('unlink_device', { p_device: b.dataset.id }); syncView('That device is no longer linked. It keeps its own settings.') }
@@ -523,13 +530,15 @@ $('#settings').addEventListener('click', async e => {
     else { b.disabled = false; announce('Something went wrong. Please try again.'); const n = $('#settings [role=status]'); if (n) n.textContent = 'Something went wrong. Please try again.' }
   }
 });
-// Pasting or typing several words into one box fills the following boxes.
+// Typing or pasting the words (or a whole sync link) into the box.
 $('#settings').addEventListener('input', e => {
-  const i = e.target.closest('[data-w]'); if (!i) return;
+  if (e.target.id !== 'join-code') return;
   if ($('#join-note')) $('#join-note').textContent = '';
-  if (/[\s,.#-]/.test(i.value.trim()) || i.value.trim().split(/\s+/).length > 1) fillWords(i.value, +i.dataset.w);
-  else if (i.value.endsWith(' ')) { i.value = i.value.trim(); document.querySelector(`[data-w="${+i.dataset.w + 1}"]`)?.focus() }
+  const fromLink = /[#/]/.test(e.target.value) && wordsFromLink(e.target.value);
+  if (fromLink) e.target.value = fromLink;
+  codeCount();
 });
+$('#settings').addEventListener('keydown', e => { if (e.target.id === 'join-code' && e.key === 'Enter') { e.preventDefault(); doJoin() } });
 
 // ---- Tip jar. Tips unlock nothing. Settings → Support Above Ground always has them; the completion screen offers
 // them gently: first at the 3rd completed session, then at most once every 10 completions and 30 days, never in a
@@ -546,7 +555,7 @@ async function loadTips() {
 }
 async function supportView(note = '', thanks = false) {
   const c = data?.copy || {};
-  if (!$('#settings .sub-title')) setBody(sub('Support Above Ground') + '<p class="small">Loading…</p>');
+  if (!$('#settings .sub-title:not(.menu-title)')) setBody(sub('Support Above Ground') + '<p class="small">Loading…</p>');
   const tips = tipList || await loadTips().catch(() => []);
   const costs = (c.support_costs || '').split('\n').filter(Boolean).map(l => l.split(/:\s*/));
   setBody(sub('Support Above Ground') + (note ? `<p class="small" role="status">${esc(note)}</p>` : '') +
@@ -667,8 +676,7 @@ function buildHelp() {
     ${countries.length ? `<label class="small country">Showing help for
       <select id="help-country">${countries.map(([c, n]) => `<option value="${esc(c)}" ${c === code ? 'selected' : ''}>${esc(n)}</option>`).join('')}
       <option value="*" ${here.length ? '' : 'selected'}>Another country</option></select></label>` : ''}
-    <p class="small">Above Ground offers support for everyday moments. It isn't a replacement for professional care.</p>
-    <button class="soft" data-close>Close</button>`;
+    <p class="small">Above Ground offers support for everyday moments. It isn't a replacement for professional care.</p>`;
 }
 // 116123 -> 116 123, 131114 -> 13 11 14; short codes (988) stay as they are.
 const fmtPhone = n => n.length === 6 && n.startsWith('13') ? `${n.slice(0, 2)} ${n.slice(2, 4)} ${n.slice(4)}` : n.length === 6 ? `${n.slice(0, 3)} ${n.slice(3)}` : n;
