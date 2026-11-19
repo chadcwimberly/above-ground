@@ -75,12 +75,36 @@ costing a production deploy.)
 ## 2b. Tip jar
 
 - `tip_options` rows: iOS/Android name the consumable product IDs `app.aboveground.tip.small|medium|large`;
-  web rows need a `url` (a Stripe Payment Link or similar). A row with no url (web) or no store product (apps)
-  stays hidden. Never link the apps to web payments: Apple and Google require in-app purchase for tips there.
-- Copy (`support_intro`, `support_costs` as "Item: cost" lines, `tip_card`, `tip_thanks`, `tips_unavailable`)
-  lives in `app_copy`. Update `support_costs` when running costs change.
+  the web rows hold Stripe Payment Links. A row shows only when `is_active` is true and, on the web, has a `url`;
+  in the apps, only when the store returns the product.
+- Copy (`support_intro`, `support_costs` as "Item: cost" lines, `tip_card`, `tip_thanks`, `tips_unavailable`,
+  `contact_email`, `contact_line`) lives in `app_copy`. Update `support_costs` when running costs change.
 - Card rules are in `tipCardDue()` in `src/main.js`. Purchases use `@capgo/native-purchases` (StoreKit 2 /
   Play Billing, no receipt server; tips are consumed right away).
+
+### Stripe links: sandbox vs live
+
+| | Sandbox (test mode) | Live |
+| --- | --- | --- |
+| `tip_options.platform` | `web-test` | `web` |
+| Links | `donate.stripe.com/test_…` / `buy.stripe.com/test_…` | `donate.stripe.com/…` (no `test_`) |
+| Used on | Deploy previews, branch deploys, local builds (any host that isn't the live site) | Only `aboveground.app` and `above-ground.netlify.app` (see `loadTips()`) |
+| `is_active` | `true` | `false` until launch |
+| Payments | Fake; test card 4242 4242 4242 4242, any future date, any CVC | Real money to Chad's Stripe account |
+
+- **When to turn live links on:** only when Chad says the app is ready to go live in the app stores. Until then
+  the live rows stay `is_active = false`, so the live site shows "Tips aren't available here yet."
+- **How to turn them on (database only, no app release needed):**
+  `update public.tip_options set is_active = true where platform = 'web';`
+  To turn them off again: the same with `false`. Then open aboveground.app → Settings → Support Above Ground and
+  check the three buttons open the live Stripe pages (don't complete a payment).
+- **Never** put a `test_` link in a `web` row or a live link in a `web-test` row, and never show any Stripe link
+  in the iOS or Android apps: Apple and Google require their own in-app purchase for tips, and the app code only
+  uses store products there.
+- If Chad replaces a link in Stripe, update that row's `url`; keep amounts matching the in-app tips ($2, $5, $10).
+- Stripe setup: the links are **tips** with tax code **Optional Gratuity (`txcd_90020001`)**, not donations.
+  Stripe only allows tips for a good or service provided, while donations must be tied to a charitable purpose.
+  Above Ground (a free app) is the service. The tax code only changes anything if Stripe Tax is turned on.
 
 ## 3. Native projects (iOS / Android)
 
@@ -168,9 +192,7 @@ Human Tasks doc: https://claude.ai/artifact/Uov4eGeBoRhFziy9vH6qYk. Keep it in s
   everything must stay off under reduced motion.
 - [x] Privacy and support pages (`public/privacy/`, `public/support/`, styled by `public/pages.css`), contact
   hello@aboveground.app (1.10.0). Update the privacy policy whenever what the app stores changes.
-- [ ] Live web tip links: Stripe test-mode links are in the `web-test` rows (previews/local). Put the live links
-  in the three `web` rows (`update tip_options set url = … where platform = 'web' and label = '$2'`) once Chad
-  activates Stripe.
+- [ ] At store launch (Chad's call): turn on the live web tip links (section 2b).
 - [ ] Universal Links / App Links for `aboveground.app/sync` (needs the Apple Team ID and the Play app-signing SHA-256).
 - [x] Sync code (12 words + QR) and delete-my-data (1.7.0).
 - [x] Tip jar (1.8.0). Goes live per platform once the store products / web payment links exist (see below).
