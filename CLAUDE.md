@@ -4,6 +4,17 @@
 sandbox workarounds, open work) are in `docs/processes.md`. Follow them, and update that file in the same
 pull request whenever a process changes or an open-work item closes.
 
+## Netlify credits (read before merging)
+The site is on Netlify's free plan: 300 credits a month, and **every production deploy (a merge or push to `main`
+that changes the website) costs 15**. Deploy Previews, branch deploys and GitHub Actions builds are free.
+- **Batch releases: merge to `main` at most once per working session.** Put a session's features on one branch
+  (or merge feature PRs into a `release` branch) and test them on the free previews. Then merge once, with one
+  version bump covering everything (SemVer: the biggest change wins) and one CHANGELOG entry.
+- **Never merge docs-only or housekeeping changes on their own.** Commit them to the next release branch.
+- `netlify.toml` skips production builds when no website files changed (`scripts/netlify-skip-build.sh`); keep
+  its file list current if the build starts reading new files.
+- Roll back a bad release from Netlify's Deploys page (free), not with a new deploy.
+
 ## Releases (owner's standing instruction)
 Claude owns versioning, building and scripting. The owner never bumps versions manually.
 - Every commit pushed to `main` that changes the app (`index.html`, `src/`, `public/`, `scripts/`, `ios/`, `android/`,
@@ -28,4 +39,5 @@ One codebase: the website (Netlify, publishes `dist/`) and the iOS/Android apps 
 
 ## Previews
 Make changes on a branch and open a pull request; don't push app changes straight to `main`. The PR gets an automatic
-preview comment (website, Android APK, iOS Simulator command). Check the deploy preview before merging.
+preview comment (website, Android APK, iOS Simulator command). Check the deploy preview before merging, and merge
+as part of a batched release (see Netlify credits).

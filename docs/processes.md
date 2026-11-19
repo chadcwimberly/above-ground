@@ -9,12 +9,21 @@ give him exact values and short numbered steps.
 
 ---
 
+## 0. Netlify credits
+
+Free plan: 300 credits a month; a production deploy costs 15 (about 20 a month). Previews and GitHub Actions
+are free. If credits run out, every site on the team pauses until the cycle resets, so batch releases (step 1)
+and never merge docs-only work by itself. Usage: Netlify → Team → Usage & Billing.
+
 ## 1. Ship a change to the app
 
-1. Branch from the latest `main`: `git fetch origin main && git checkout -B <short-name> origin/main`.
+1. Branch from the latest `main`: `git fetch origin main && git checkout -B <short-name> origin/main`. Use one
+   branch (one pull request) for everything shipped in a working session, or merge several feature pull requests
+   into a `release` branch and open one pull request from it to `main`.
 2. Make the change. Put web vs native differences in `src/platform.js`. Don't hard-code content (see section 2).
-3. Bump the version with `npm version <x.y.z> --no-git-tag-version` (SemVer rules are in `CLAUDE.md`). Add a
-   `CHANGELOG.md` entry with today's date at the top.
+3. Bump the version once for the whole release with `npm version <x.y.z> --no-git-tag-version` (SemVer rules
+   are in `CLAUDE.md`; with several changes, the biggest one decides). Add one `CHANGELOG.md` entry with today's
+   date at the top. If you add more to the release later, update that same version and entry instead of bumping again.
 4. Run `npm run native`. This builds, copies the build into iOS/Android, and writes the version and build number
    into both native projects.
 5. Restore the service worker with `git checkout -- public/sw.js`, because the build stamps it.
@@ -30,7 +39,9 @@ give him exact values and short numbered steps.
     `gh api -X PUT repos/chadcwimberly/above-ground/pulls/<N>/merge -f merge_method=squash`.
 11. Report the result to Chad: what changed, the version change (old → new), and anything he needs to do.
 
-Docs-only or repo-housekeeping changes skip steps 3–5 and need no version bump.
+Docs-only or repo-housekeeping changes skip steps 3–5 and need no version bump. Don't merge them on their own:
+commit them to the next release branch. (If one must go alone, `scripts/netlify-skip-build.sh` keeps it from
+costing a production deploy.)
 
 ## 2. Change content (exercises, affirmations, messages, greetings, crisis resources, reminders)
 
