@@ -1,0 +1,16 @@
+/* Plain pages on aboveground.app (privacy, support), in the app's default "Hearth" colors, light or dark. */
+:root{--bg:#d8c6b2;--surface:#e5d7c6;--ink:#3a2b21;--mute:#5f4a39;--accent:#6f4a33;color-scheme:light dark}
+@media (prefers-color-scheme:dark){:root{--bg:#2b2830;--surface:#37333d;--ink:#e6e1ea;--mute:#a39cac;--accent:#d2c3df}}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--ink);font:400 1.08rem/1.6 Georgia,'Iowan Old Style','Times New Roman',serif}
+main{max-width:40rem;margin:0 auto;padding:max(1.5rem,env(safe-area-inset-top)) 1.25rem 3rem}
+h1{font-size:2rem;font-weight:500;margin:.5rem 0 .25rem}
+h2{font-size:1.3rem;font-weight:500;margin:2rem 0 .5rem}
+h3{font-size:1.08rem;font-weight:600;margin:1.25rem 0 .25rem}
+p,li{margin:.5rem 0}
+ul{padding-left:1.25rem}
+a{color:var(--accent);text-underline-offset:.15em}
+.back{margin:0 0 1rem;font-size:.95rem}.back a{color:var(--mute)}
+.updated{color:var(--mute);font-size:.95rem;margin-top:0}
+.crisis{background:var(--surface);border-radius:1.25rem;padding:1rem 1.2rem}
+:focus-visible{outline:3px solid var(--accent);outline-offset:3px}
