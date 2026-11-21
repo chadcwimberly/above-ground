@@ -109,6 +109,17 @@ costing a production deploy.)
   Stripe only allows tips for a good or service provided, while donations must be tied to a charitable purpose.
   Above Ground (a free app) is the service. The tax code only changes anything if Stripe Tax is turned on.
 
+## 2c. First-launch welcome and reminder offer
+
+- **Welcome (intro):** shown once per device before the home screen, when `introSeen` isn't saved and the device
+  has no earlier visit (`lastVisit`). "Let's go" saves `introSeen`. Its text is `app_copy` `intro_title`,
+  `intro_body`, `intro_cta` and `intro_points` (one "icon|text" line per promise; icons are `private`, `nosell`,
+  `noads`, or `check` as the fallback, defined in `ICON` in `src/main.js`). The logo is `public/icon-512.png`.
+  If `intro_title` is missing, the screen is skipped.
+- **Reminder offer:** apps only (`canRemind`). Shown on the affirmation screen while completions are from
+  `REMIND_FROM` (3) up to `REMIND_UNTIL` (8) and reminders have never been turned on (`remindersSet`). It opens
+  the `remind` Settings view. Copy: `app_copy` `reminder_*`.
+
 ## 3. Native projects (iOS / Android)
 
 - Capacitor 8, app ID `app.aboveground`. iOS uses Swift Package Manager. Android uses Java 21.

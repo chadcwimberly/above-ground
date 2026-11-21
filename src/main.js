@@ -31,7 +31,12 @@ const ICON = {
   back: '<path d="M15 5l-7 7 7 7"/>',
   gear: '<path d="M4 7h10M18 7h2M4 17h2M10 17h10"/><circle cx="16" cy="7" r="2"/><circle cx="8" cy="17" r="2"/>',
   refresh: '<path d="M20 12a8 8 0 1 1-2.3-5.7M20 4v5h-5"/>',
-  up: '<path d="M7 11v9H4v-9zM7 11l4-7c2 0 2.5 1.5 2 3l-.5 3H19a1 1 0 0 1 1 1.2l-1.2 6A2 2 0 0 1 16.8 20H7"/>'
+  up: '<path d="M7 11v9H4v-9zM7 11l4-7c2 0 2.5 1.5 2 3l-.5 3H19a1 1 0 0 1 1 1.2l-1.2 6A2 2 0 0 1 16.8 20H7"/>',
+  // Intro list icons (keys used in app_copy.intro_points)
+  private: '<circle cx="12" cy="8" r="3.5"/><path d="M5 20c.8-3.6 3.6-5.5 7-5.5s6.2 1.9 7 5.5M4 4l16 16"/>',
+  nosell: '<path d="M12 3v18M16 7.6c-.7-1.2-2.1-1.9-4-1.9-2.4 0-3.8 1.1-3.8 2.8s1.4 2.5 3.8 3.1 4.2 1.4 4.2 3.2-1.7 3.1-4.2 3.1c-2.1 0-3.7-.8-4.5-2.2M4 4l16 16"/>',
+  noads: '<path d="M4 10v4h3l7 4V6l-7 4zM17.5 9.5a3.5 3.5 0 0 1 0 5M3 3l18 18"/>',
+  check: '<path d="M5 12.5l4.5 4.5L19 7"/>'
 };
 const svg = n => `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${ICON[n]}</svg>`;
 
@@ -172,6 +177,16 @@ function render() {
     foot.innerHTML = '';
     return;
   }
+  if (k === 'intro') {
+    // First launch only: what the app is, and what it never does. Copy lives in app_copy (intro_*).
+    const c = data.copy, points = (c.intro_points || '').split('\n').filter(Boolean).map(l => l.includes('|') ? l.split('|') : ['check', l]);
+    main.innerHTML = `<div class="screen intro"><img class="logo" src="icon-512.png" alt="" width="88" height="88">
+      <h1>${esc(c.intro_title)}</h1><p class="lead">${esc(c.intro_body || '')}</p>
+      <ul class="promises">${points.map(([i, t]) => `<li>${svg(ICON[i] ? i : 'check')}<span>${esc(t)}</span></li>`).join('')}</ul></div>`;
+    foot.innerHTML = `<button class="cta" data-a="intro-done">${esc(c.intro_cta || '')}</button>`;
+    main.scrollTop = 0;
+    return;
+  }
   if (k === 'welcome') {
     main.innerHTML = `<div class="screen welcome">${S.greeting ? `<h1>${esc(S.greeting)}</h1>` : ''}<div class="needs">${NEEDS.map(n =>
       `<button class="need" data-a="need" data-c="${n[0]}">${esc(n[1])}</button>`).join('')}</div></div>`;
@@ -192,7 +207,8 @@ function render() {
       <button class="tool" data-a="refresh" aria-label="Show a different one">${svg('refresh')}</button>
       <button class="tool" data-a="up" aria-label="Vote up" aria-pressed="${vote(1)}">${svg('up')}</button>
       <button class="tool flip" data-a="down" aria-label="Vote down" aria-pressed="${vote(-1)}">${svg('up')}</button></div>
-      <button class="cta" data-a="${k === 'exercise' ? 'next' : 'done'}">${k === 'exercise' ? 'Next' : 'Done'}</button>`;
+      <button class="cta" data-a="${k === 'exercise' ? 'next' : 'done'}">${k === 'exercise' ? 'Next' : 'Done'}</button>
+      ${k === 'affirmation' && remindPromptDue() ? `<button class="link remind-prompt" data-a="remind">${esc(data.copy.reminder_prompt)}</button>` : ''}`;
   }
   main.scrollTop = 0;
 }
@@ -233,7 +249,7 @@ const reduceMotion = matchMedia('(prefers-reduced-motion: reduce)');
 const canTransition = () => !!document.startViewTransition && !reduceMotion.matches;
 if (canTransition()) document.documentElement.classList.add('vt');
 reduceMotion.addEventListener?.('change', () => document.documentElement.classList.toggle('vt', canTransition()));
-const ORDER = { welcome: 0, exercise: 1, affirmation: 2, message: 3 };
+const ORDER = { intro: -1, welcome: 0, exercise: 1, affirmation: 2, message: 3 };
 function swap(update, from, to) {
   if (!canTransition() || !$('#main').children.length || document.hidden) return update();
   document.documentElement.dataset.dir = from === to ? 'same' : from === 'message' && to === 'welcome' ? 'same' : ORDER[to] < ORDER[from] ? 'back' : 'fwd';
@@ -258,7 +274,9 @@ document.addEventListener('click', e => {
   if (a === 'tip-open') { S.showTip = false; $('.tipcard')?.remove(); return openSettings('support') }
   if (a === 'tip-later' || a === 'tip-never') { if (a === 'tip-never') saveTipsState({ never: true }); S.showTip = false; $('.tipcard')?.remove(); return $('[data-a=restart]')?.focus() }
   if (busy) return;
-  if (a === 'retry') { b.disabled = true; b.textContent = 'Trying…'; if (sb) loadWithWait().then(() => go('welcome')); else location.reload(); return }
+  if (a === 'retry') { b.disabled = true; b.textContent = 'Trying…'; if (sb) loadWithWait().then(() => go(home())); else location.reload(); return }
+  if (a === 'intro-done') { store.set('introSeen', true); return go('welcome') }
+  if (a === 'remind') return openSettings('remind');
   if (a === 'need') startCategory(b.dataset.c);
   if (a === 'up' || a === 'down') return vote(k, it, a === 'up' ? 1 : -1);
   if (a === 'refresh') { log('refresh', it, k); go(k, true) }
@@ -272,6 +290,21 @@ document.addEventListener('click', e => {
     log('complete', S.ex, 'exercise'); log('complete', S.af, 'affirmation'); if (prefs.health) logMindful(S.startedAt, Date.now()); go('message', true) }
   if (a === 'restart') { log('restart', it, 'message'); S.votes = {}; S.showTip = false; S.helpOpened = false; go('welcome') }
 });
+
+// ---- First launch: a one-time intro before the home screen. People who used the app before this screen existed
+// (they have a saved last visit) skip it. Deep links (widgets, shortcuts, shared links) go straight to an exercise
+// and leave the intro for the next normal launch.
+const introDue = () => !store.get('introSeen', false) && !store.get('lastVisit', 0) && !!data?.copy?.intro_title;
+const home = () => introDue() ? 'intro' : 'welcome';
+
+// ---- Reminder offer on the affirmation screen (apps only; the website can't send reminders). It appears once
+// REMIND_FROM sessions are complete and retires for good at REMIND_UNTIL, or as soon as reminders are turned on.
+const REMIND_FROM = 3, REMIND_UNTIL = 8;
+function remindPromptDue() {
+  if (!canRemind || !data?.copy?.reminder_prompt || prefs.reminders.enabled || store.get('remindersSet', false)) return false;
+  const n = completions();
+  return n >= REMIND_FROM && n < REMIND_UNTIL;
+}
 
 // Start a session in a category (welcome buttons, widgets, shortcuts). Mindful minutes count from here.
 function startCategory(cat) {
@@ -308,6 +341,7 @@ function buildSettings(note = '') {
   if (sv === 'join') return joinView('', note);
   if (sv === 'privacy') return privacyView(note);
   if (sv === 'support') return supportView(note);
+  if (sv === 'remind') return remindView(note);
   const r = prefs.reminders, online = !!(sb && deviceId);
   $('#settings .body').innerHTML = `<h1 class="sub-title menu-title">Settings</h1><h2>Theme</h2><div class="opts">${P.map(p =>
     `<button class="opt" data-p="${p[0]}" aria-pressed="${prefs.palette === p[0]}"><span class="sw" style="background:linear-gradient(135deg,${p[2]} 50%,${p[3]} 50%)"></span>${p[1]}</button>`).join('')}</div>
@@ -337,6 +371,18 @@ function buildSettings(note = '') {
     <p class="small">Device: ${deviceId ? (deviceName ? `${esc(deviceName)} (${deviceId.slice(0, 8)})` : deviceId.slice(0, 8)) : 'offline mode'}<br>
     Last Updated: ${version ? `${esc(fmtRelease(version.releasedAt))} (${esc(version.version)})` : 'unknown'}</p>`;
 }
+// Reminder setup opened from the affirmation screen's offer: days and time, then one button to turn them on.
+function remindView(note = '') {
+  const r = prefs.reminders, c = data?.copy || {};
+  setBody(`<h1 class="sub-title" tabindex="-1">${esc(c.reminder_title || '')}</h1><p class="tight">${esc(c.reminder_intro || '')}</p>
+    <div class="remind"><label>Time <input type="time" id="r-time" value="${esc(r.time)}"></label>
+    <div class="days" role="group" aria-label="Days">${DAYS.map(([n, l, full]) =>
+      `<button class="opt text day" data-day="${n}" aria-label="${full}" aria-pressed="${r.days.includes(n)}">${l}</button>`).join('')}</div></div>
+    ${note ? `<p class="small" role="status">${esc(note)}</p>` : ''}
+    <div class="remind-act">${r.enabled ? `<p class="small" role="status">${esc(c.reminder_on || '')}</p><button class="cta" data-close>${esc(c.reminder_done || 'Done')}</button>`
+      : `<button class="cta" data-t="reminders">${esc(c.reminder_turn_on || '')}</button>`}</div>`, !r.enabled);
+  if (r.enabled) $('#settings .remind-act .cta')?.focus();
+}
 async function updateReminders(ask) {
   const ok = await scheduleReminders(prefs.reminders, data?.reminders, ask);
   if (!ok && prefs.reminders.enabled) { prefs.reminders.enabled = false; applyPrefs(); return 'Notifications are turned off for Above Ground. You can allow them in your phone\'s settings.' }
@@ -353,7 +399,7 @@ function openSettings(view = 'main', words = '') {
   if (view === 'join' && words) joinView(words); else buildSettings();
   if (!$('#settings').open) $('#settings').showModal();
 }
-$('#settings').addEventListener('close', () => { sv = 'main'; stopScan() });
+$('#settings').addEventListener('close', () => { sv = 'main'; stopScan(); if (!remindPromptDue()) $('.remind-prompt')?.remove() });
 // Settings pages slide in from the side they lead to.
 function slideBody(dir) {
   const b = $('#settings .body'); b.scrollTop = 0;
@@ -659,7 +705,10 @@ $('#settings').addEventListener('click', async e => {
     if (prefs.health) prefs.health = false;
     else { prefs.health = await requestHealth(); if (!prefs.health) note = `Above Ground can't save to ${health} yet. You can allow it in ${health}.` }
   }
-  if (t?.dataset.t === 'reminders') { prefs.reminders.enabled = !prefs.reminders.enabled; applyPrefs(); note = await updateReminders(true) }
+  if (t?.dataset.t === 'reminders') {
+    prefs.reminders.enabled = !prefs.reminders.enabled; applyPrefs(); note = await updateReminders(true);
+    if (prefs.reminders.enabled) store.set('remindersSet', true);
+  }
   if (day) {
     const n = +day.dataset.day, d = prefs.reminders.days;
     prefs.reminders.days = d.includes(n) ? d.filter(x => x !== n) : [...d, n].sort();
@@ -826,7 +875,7 @@ async function init() {
       if (!deviceName && saved && saved.id === session?.user.id) deviceName = saved.name;
     }).catch(() => {});
   }
-  go('welcome');
+  go(home());
   appReady();
   started = true;
   if (pendingLink) handleLink(pendingLink);

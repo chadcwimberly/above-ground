@@ -5,6 +5,16 @@ MAJOR for changes that break saved data or flows, MINOR for new features, PATCH 
 The exact time each version went live is shown in the app under Settings → Last Updated.
 
 ## 1.10.0 — 2026-11-18
+- First-launch welcome: a one-time screen with the logo, what Above Ground is for, three promises with icons
+  (no personal information gathered, data never sold, no ads) and a "Let's go" button that leads to the home
+  screen and never shows again. People who already used the app skip it; a shortcut, widget or shared link on a
+  brand-new install goes straight to the exercise and leaves the welcome for the next normal launch. Copy lives in
+  `app_copy` (`intro_title`, `intro_body`, `intro_points` as "icon|text" lines, `intro_cta`).
+- Reminder offer (iOS and Android apps): from the 4th session, the affirmation screen shows "Want a gentle reminder
+  to come back?" under Done. It opens a small reminder setup (days, time, "Turn on reminders"). The offer stops
+  for good once reminders are turned on, or after the 8th session if they never are. Copy lives in `app_copy`
+  (`reminder_prompt`, `reminder_title`, `reminder_intro`, `reminder_turn_on`, `reminder_on`, `reminder_done`).
+- Reminder day buttons fit on one row inside the modals.
 - Privacy policy and support pages at `aboveground.app/privacy` and `aboveground.app/support` (both stores need
   them), linked from the bottom of Settings. On the website the links stay on the site being viewed (so a deploy
   preview opens its own pages); the apps open aboveground.app.
