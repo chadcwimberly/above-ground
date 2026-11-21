@@ -15,6 +15,10 @@ The exact time each version went live is shown in the app under Settings → Las
   for good once reminders are turned on, or after the 8th session if they never are. Copy lives in `app_copy`
   (`reminder_prompt`, `reminder_title`, `reminder_intro`, `reminder_turn_on`, `reminder_on`, `reminder_done`).
 - Reminder day buttons fit on one row inside the modals.
+- "Why this works" is quieter: a small, muted link with a chevron instead of a filled panel, with smaller text and
+  sources, so it no longer competes with the exercise.
+- Website on tall windows: the app stops growing at 50rem (800px) and sits centered vertically, so the exercise
+  and its buttons stay together instead of being split by a tall empty gap. The apps still fill the screen.
 - Privacy policy and support pages at `aboveground.app/privacy` and `aboveground.app/support` (both stores need
   them), linked from the bottom of Settings. On the website the links stay on the site being viewed (so a deploy
   preview opens its own pages); the apps open aboveground.app.

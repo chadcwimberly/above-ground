@@ -14,6 +14,8 @@ import { Share } from '@capacitor/share';
 import { NativePurchases, PURCHASE_TYPE } from '@capgo/native-purchases';
 
 export const isNative = Capacitor.isNativePlatform();
+// Lets the stylesheet treat the website differently (e.g. its maximum height on tall windows).
+if (!isNative) document.documentElement.dataset.web = '';
 export const platform = Capacitor.getPlatform(); // 'web' | 'ios' | 'android'
 
 // Restore saved values into localStorage before the app reads them (native only).

@@ -145,11 +145,22 @@ header{align-items:center}
 .day{--pl:0;min-width:2.75rem;min-height:2.75rem;justify-content:center;padding:0}
 .opt.day[aria-pressed=true]{padding:0}
 
+/* Website only: on tall windows the app stops growing and sits centered, so the exercise and its buttons stay
+   together instead of being split by a tall empty gap. (The apps always fill the phone screen.) */
+[data-web] body{display:flex;flex-direction:column;justify-content:center}
+[data-web] #app{width:100%;max-height:50rem}
+
 /* "Why this works" and its sources */
-.why{margin:1.5rem 0 .5rem;padding:.9rem 1.1rem;border-radius:1.25rem;background:var(--surface)}
-.why summary{cursor:pointer;font-weight:500;min-height:1.75rem}
-.why p{margin:.75rem 0 .5rem;font-size:1rem}
-.sources{margin:0;padding-left:1.1rem;font-size:.9rem;color:var(--mute)}
+/* Kept quiet on purpose: small, muted, no panel, so it never competes with the exercise itself */
+.why{margin:1.5rem 0 .5rem;color:var(--mute);font-size:.9rem;line-height:1.5}
+.why summary{cursor:pointer;list-style:none;display:inline-flex;align-items:center;gap:.35rem;min-height:2.75rem;
+  text-decoration:underline;text-decoration-color:color-mix(in srgb,currentColor 40%,transparent);text-underline-offset:3px}
+.why summary::-webkit-details-marker{display:none}
+.why summary::after{content:'';width:.4rem;height:.4rem;margin-left:.15rem;border:solid currentColor;border-width:0 1.5px 1.5px 0;
+  transform:translateY(-.15rem) rotate(45deg);transition:transform .25s var(--ease-out)}
+.why[open] summary::after{transform:translateY(.1rem) rotate(-135deg)}
+.why p{margin:.25rem 0 .5rem}
+.sources{margin:0;padding-left:1.1rem;font-size:.85rem;color:var(--mute)}
 .sources li{margin:.35rem 0}
 .sources a{color:inherit}
 
@@ -204,7 +215,7 @@ header{align-items:center}
 
 /* ---- Motion. Gentle and quick; all of it is off when the system's "reduce motion" setting is on (see the end). */
 :root{--ease-out:cubic-bezier(.22,1,.36,1)}
-body,dialog,.need,.tool,.line,.why,.tipcard{transition:background-color .45s ease,color .45s ease}
+body,dialog,.need,.tool,.line,.tipcard{transition:background-color .45s ease,color .45s ease}
 /* Screens: the main area and its footer slide between screens while the header stays still (View Transitions where
    the browser has them; elsewhere each screen rises in). */
 #main{view-transition-name:screen}#foot{view-transition-name:foot}
