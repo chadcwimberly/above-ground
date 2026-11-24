@@ -77,7 +77,8 @@ function pickGreeting(now = new Date()) {
   store.set('lastGreeting', text);
   return text;
 }
-const NEEDS = [['anxiety', "I'm feeling anxious"], ['depression', "I'm feeling depressed"], ['grounding', 'I need some grounding']];
+const NEEDS = [['anxiety', "I'm feeling anxious"], ['depression', "I'm feeling depressed"], ['grounding', 'I need some grounding'],
+  ['sleep', "I'm getting ready for sleep"]];
 
 // ---- State
 const KEY = { exercise: 'ex', affirmation: 'af', message: 'msg' };
@@ -105,7 +106,7 @@ function startTimer(btn) {
   const go = () => {
     btn.textContent = n > 0 ? n + ' seconds left' : 'Time is up. Take one more slow breath.';
     if (n === 10) announce('10 seconds left.');
-    if (n-- <= 0) { clearInterval(tick); stopPacer(); announce('Time is up.'); if (prefs.haptics !== false) tap('medium') }
+    if (n-- <= 0) { clearInterval(tick); stopPacer(); announce('Time is up.'); if (prefs.haptics !== false) tap(S.cat === 'sleep' ? 'light' : 'medium') }
   };
   go(); tick = setInterval(go, 1000);
 }
@@ -166,7 +167,7 @@ function extras(it) {
 
 // ---- Rendering
 function render() {
-  clearInterval(tick); stopPacer(); $('#guide-audio')?.pause();
+  clearInterval(tick); stopPacer(); $('#guide-audio')?.pause(); applyTheme();
   const k = S.screen, it = cur(), main = $('#main'), foot = $('#foot');
   $('#back').style.visibility = k === 'affirmation' || k === 'exercise' ? 'visible' : 'hidden';
   main.className = k === 'exercise' ? '' : k === 'affirmation' ? 'center has-blob' : 'center';
@@ -323,9 +324,20 @@ const prefs = store.get('prefs', { palette: 'hearth', font: 'lora' });
 // Reminders are off until turned on; days 1 = Sunday ... 7 = Saturday.
 prefs.reminders ??= { enabled: false, time: '20:00', days: [1, 2, 3, 4, 5, 6, 7] };
 function applyPrefs() {
-  const d = document.documentElement;
   if (!P.some(p => p[0] === prefs.palette)) prefs.palette = 'hearth'; // e.g. a saved palette that no longer exists
-  d.dataset.palette = prefs.palette; d.dataset.font = prefs.font; store.set('prefs', prefs);
+  store.set('prefs', prefs);
+  applyTheme();
+}
+// Sleep sessions (exercise, affirmation and goodnight message) always show a dark theme, so the screen stays dim at
+// bedtime. A dark theme someone already chose is kept; any light one gives way to Dusk until they're back home.
+// This is never saved or synced: their own theme returns on the welcome screen.
+const DARK = ['pine', 'dusk'];
+const sleepDark = () => S.cat === 'sleep' && S.screen !== 'welcome' && S.screen !== 'intro' && !DARK.includes(prefs.palette);
+function applyTheme() {
+  const d = document.documentElement, palette = sleepDark() ? 'dusk' : prefs.palette;
+  d.dataset.font = prefs.font;
+  if (d.dataset.palette === palette && d.dataset.themed) return;
+  d.dataset.palette = palette; d.dataset.themed = '1';
   const bg = getComputedStyle(d).getPropertyValue('--bg').trim();
   $('meta[name=theme-color]').content = bg;
   syncSystemBars(bg);
@@ -345,6 +357,7 @@ function buildSettings(note = '') {
   const r = prefs.reminders, online = !!(sb && deviceId);
   $('#settings .body').innerHTML = `<h1 class="sub-title menu-title">Settings</h1><h2>Theme</h2><div class="opts">${P.map(p =>
     `<button class="opt" data-p="${p[0]}" aria-pressed="${prefs.palette === p[0]}"><span class="sw" style="background:linear-gradient(135deg,${p[2]} 50%,${p[3]} 50%)"></span>${p[1]}</button>`).join('')}</div>
+    ${sleepDark() ? '<p class="small tight">Sleep exercises use a dark theme so your screen stays dim. Your theme comes back afterward.</p>' : ''}
     <h2>Font</h2><div class="opts">${F.map(f =>
     `<button class="opt text" data-f="${f[0]}" aria-pressed="${prefs.font === f[0]}" style="font-family:'${f[2]}',sans-serif">${f[1]}</button>`).join('')}</div>
     ${canVibrate ? `<h2>Vibration</h2><div class="opts"><button class="opt text" data-t="haptics" aria-pressed="${prefs.haptics !== false}">Gentle taps during breathing guides</button></div>` : ''}
@@ -786,7 +799,7 @@ async function loadContent() {
   const [x, a, m, g, c, r, tp, cp] = await Promise.all([
     sb.from('exercises').select('id,title,kind,body,category,research_summary,sources,audio_url').eq('is_active', true),
     sb.from('affirmations').select('id,body_html,category').eq('is_active', true),
-    sb.from('completion_messages').select('id,body').eq('is_active', true),
+    sb.from('completion_messages').select('id,body,category').eq('is_active', true),
     sb.from('greetings').select('id,body,contexts').eq('is_active', true),
     sb.from('crisis_resources').select('country,country_name,name,description,phone,sms,sms_body,url,emergency,sort').eq('is_active', true).order('sort'),
     sb.from('reminder_messages').select('id,body').eq('is_active', true),

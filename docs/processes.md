@@ -67,6 +67,7 @@ costing a production deploy.)
 - The app only talks to profiles through functions: `get_profile`, `save_profile`, `set_sync_code`,
   `join_profile` (5 tries/hour), `linked_devices`, `unlink_device`, `export_my_data`, `delete_my_data`.
   The tables have row-level security with no policies on purpose; the advisor's "no policy" notes are expected.
+- Sleep sessions show Dusk unless Pine or Dusk is chosen (`sleepDark()`/`applyTheme()` in `src/main.js`); never saved.
 - Synced settings: theme, font, vibration, reminder time/days, crisis-line country (latest change wins).
   Reminders on/off and Health stay per device. Add a new synced setting to `SYNCED` in `src/main.js`.
 - Sync words live only on devices (`syncWords`); the server keeps a SHA-256 hash. `src/sync.js` has the word
@@ -217,4 +218,10 @@ Human Tasks doc: https://claude.ai/artifact/Uov4eGeBoRhFziy9vH6qYk. Keep it in s
 - [x] Sync code (12 words + QR) and delete-my-data (1.7.0).
 - [x] Tip jar (1.8.0). Goes live per platform once the store products / web payment links exist (see below).
 - [ ] Signed release workflow → TestFlight / Play internal testing (needs developer accounts).
+- [ ] **After 1.10.0 is live:** turn on the goodnight messages:
+  `update completion_messages set is_active = true where 'sleep' = any(category);` (kept off so older app versions,
+  which ignore the category, don't show "sleep well" during the day).
+- [ ] Sleep: get Chad's OK on the 11 "Why this works" drafts, then write them to `exercises.research_summary`/`sources`.
+- [ ] Sleep choice in the native widgets, Siri/App Shortcuts and Android shortcuts (they still offer three choices;
+  the deep link `aboveground://start?feeling=sleep` already works).
 - [ ] Audio guides (someone Chad knows may record them; `exercises.audio_url` is ready).
