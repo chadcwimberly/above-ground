@@ -9,7 +9,8 @@ import { createClient } from '@supabase/supabase-js';
 import { isNative, platform, restoreSaved, mirror, authStorage, syncSystemBars, appReady, onBackButton, onAppPause,
   canVibrate, tap, followSystemTextSize, canRemind, scheduleReminders, guessCountry,
   onDeepLink, healthAvailable, requestHealth, logMindful, clearSaved, saveFile, canScan, tipProducts, buyTip } from './platform.js';
-import { newCode, normalize, isValid, hashCode, syncLink, wordsFromLink, qrSvg, scanQR, wordlist } from './sync.js';
+import { SITE, newCode, normalize, isValid, hashCode, syncLink, wordsFromLink, qrSvg, scanQR, wordlist } from './sync.js';
+const WORDS = new Set(wordlist);
 
 // In the native apps, bring back saved settings, content and the event queue before anything reads them.
 await restoreSaved();
@@ -30,7 +31,12 @@ const ICON = {
   back: '<path d="M15 5l-7 7 7 7"/>',
   gear: '<path d="M4 7h10M18 7h2M4 17h2M10 17h10"/><circle cx="16" cy="7" r="2"/><circle cx="8" cy="17" r="2"/>',
   refresh: '<path d="M20 12a8 8 0 1 1-2.3-5.7M20 4v5h-5"/>',
-  up: '<path d="M7 11v9H4v-9zM7 11l4-7c2 0 2.5 1.5 2 3l-.5 3H19a1 1 0 0 1 1 1.2l-1.2 6A2 2 0 0 1 16.8 20H7"/>'
+  up: '<path d="M7 11v9H4v-9zM7 11l4-7c2 0 2.5 1.5 2 3l-.5 3H19a1 1 0 0 1 1 1.2l-1.2 6A2 2 0 0 1 16.8 20H7"/>',
+  // Intro list icons (keys used in app_copy.intro_points)
+  private: '<circle cx="12" cy="8" r="3.5"/><path d="M5 20c.8-3.6 3.6-5.5 7-5.5s6.2 1.9 7 5.5M4 4l16 16"/>',
+  nosell: '<path d="M12 3v18M16 7.6c-.7-1.2-2.1-1.9-4-1.9-2.4 0-3.8 1.1-3.8 2.8s1.4 2.5 3.8 3.1 4.2 1.4 4.2 3.2-1.7 3.1-4.2 3.1c-2.1 0-3.7-.8-4.5-2.2M4 4l16 16"/>',
+  noads: '<path d="M4 10v4h3l7 4V6l-7 4zM17.5 9.5a3.5 3.5 0 0 1 0 5M3 3l18 18"/>',
+  check: '<path d="M5 12.5l4.5 4.5L19 7"/>'
 };
 const svg = n => `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${ICON[n]}</svg>`;
 
@@ -71,12 +77,13 @@ function pickGreeting(now = new Date()) {
   store.set('lastGreeting', text);
   return text;
 }
-const NEEDS = [['anxiety', "I'm feeling anxious"], ['depression', "I'm feeling depressed"], ['grounding', 'I need some grounding']];
+const NEEDS = [['anxiety', "I'm feeling anxious"], ['depression', "I'm feeling depressed"], ['grounding', 'I need some grounding'],
+  ['sleep', "I'm getting ready for sleep"]];
 
 // ---- State
 const KEY = { exercise: 'ex', affirmation: 'af', message: 'msg' };
 const COLL = { exercise: 'exercises', affirmation: 'affirmations', message: 'messages' };
-const S = { screen: 'welcome', cat: null, greeting: '', ex: null, af: null, msg: null, votes: {} };
+const S = { screen: 'welcome', cat: null, focus: null, greeting: '', ex: null, af: null, msg: null, votes: {} };
 let data = store.get(CACHE_KEY, null), sb = null, deviceId = null, deviceName = null, tick, ready = Promise.resolve();
 let version = store.get('version', null);
 const sessionId = crypto.randomUUID();
@@ -99,7 +106,7 @@ function startTimer(btn) {
   const go = () => {
     btn.textContent = n > 0 ? n + ' seconds left' : 'Time is up. Take one more slow breath.';
     if (n === 10) announce('10 seconds left.');
-    if (n-- <= 0) { clearInterval(tick); stopPacer(); announce('Time is up.'); if (prefs.haptics !== false) tap('medium') }
+    if (n-- <= 0) { clearInterval(tick); stopPacer(); announce('Time is up.'); if (prefs.haptics !== false) tap(S.cat === 'sleep' ? 'light' : 'medium') }
   };
   go(); tick = setInterval(go, 1000);
 }
@@ -160,15 +167,25 @@ function extras(it) {
 
 // ---- Rendering
 function render() {
-  clearInterval(tick); stopPacer(); $('#guide-audio')?.pause();
+  clearInterval(tick); stopPacer(); $('#guide-audio')?.pause(); applyTheme();
   const k = S.screen, it = cur(), main = $('#main'), foot = $('#foot');
-  $('#back').style.visibility = k === 'affirmation' || k === 'exercise' ? 'visible' : 'hidden';
+  $('#back').style.visibility = k === 'affirmation' || k === 'exercise' || k === 'focus' ? 'visible' : 'hidden';
   main.className = k === 'exercise' ? '' : k === 'affirmation' ? 'center has-blob' : 'center';
   if (k === 'welcome' && !data) {
     // No content yet: first launch with no connection. Nothing is shipped in the app, so ask to try again.
     main.innerHTML = `<div class="screen welcome"><p class="msg">I can't reach the exercises right now.</p>
       <p class="lead">Check your connection, then try again.</p><button class="soft" data-a="retry">Try again</button></div>`;
     foot.innerHTML = '';
+    return;
+  }
+  if (k === 'intro') {
+    // First launch only: what the app is, and what it never does. Copy lives in app_copy (intro_*).
+    const c = data.copy, points = (c.intro_points || '').split('\n').filter(Boolean).map(l => l.includes('|') ? l.split('|') : ['check', l]);
+    main.innerHTML = `<div class="screen intro"><img class="logo" src="icon-512.png" alt="" width="88" height="88">
+      <h1>${esc(c.intro_title)}</h1><p class="lead">${esc(c.intro_body || '')}</p>
+      <ul class="promises">${points.map(([i, t]) => `<li>${svg(ICON[i] ? i : 'check')}<span>${esc(t)}</span></li>`).join('')}</ul></div>`;
+    foot.innerHTML = `<button class="cta" data-a="intro-done">${esc(c.intro_cta || '')}</button>`;
+    main.scrollTop = 0;
     return;
   }
   if (k === 'welcome') {
@@ -178,11 +195,18 @@ function render() {
     main.scrollTop = 0;
     return;
   }
+  if (k === 'focus') {
+    main.innerHTML = `<div class="screen welcome"><h1>${esc(data.copy[S.cat + '_focus_question'] || '')}</h1><div class="needs">${focusOptions(S.cat).map(([f, l]) =>
+      `<button class="need" data-a="focus" data-f="${esc(f)}">${esc(l)}</button>`).join('')}</div></div>`;
+    foot.innerHTML = '';
+    main.scrollTop = 0;
+    return;
+  }
   const vote = v => S.votes[k + it.id] === v;
   if (k === 'exercise') main.innerHTML = `<div class="screen"><h1>${esc(it.title)}</h1>${(R[it.kind] || R.steps)(it.body || {})}${extras(it)}</div>`;
   if (k === 'affirmation') main.innerHTML = `<div class="screen said-on-blob">${BLOB}<div class="said"><p class="lead">Repeat after me:</p><div class="aff">${it.body_html}</div></div></div>`;
   if (k === 'message') main.innerHTML = `<div class="screen"><p class="msg">${esc(it.body)}</p>${S.showTip ? `<div class="tipcard">
-    <p>${esc(data.copy.tip_card)}</p><button class="soft" data-a="tip-open">Leave a tip</button>
+    <p>${esc(data.copy.tip_card)}</p><button class="soft" data-a="tip-open">${esc(data.copy.tip_card_button || data.copy.support_cta || '')}</button>
     <div class="tipcard-more"><button class="link" data-a="tip-later">Not now</button><button class="link" data-a="tip-never">Don't show again</button></div></div>` : ''}</div>`;
   if (k === 'message') {
     foot.innerHTML = `<button class="cta" data-a="restart">Restart</button>`;
@@ -191,7 +215,8 @@ function render() {
       <button class="tool" data-a="refresh" aria-label="Show a different one">${svg('refresh')}</button>
       <button class="tool" data-a="up" aria-label="Vote up" aria-pressed="${vote(1)}">${svg('up')}</button>
       <button class="tool flip" data-a="down" aria-label="Vote down" aria-pressed="${vote(-1)}">${svg('up')}</button></div>
-      <button class="cta" data-a="${k === 'exercise' ? 'next' : 'done'}">${k === 'exercise' ? 'Next' : 'Done'}</button>`;
+      <button class="cta" data-a="${k === 'exercise' ? 'next' : 'done'}">${k === 'exercise' ? 'Next' : 'Done'}</button>
+      ${k === 'affirmation' && remindPromptDue() ? `<button class="link remind-prompt" data-a="remind">${esc(data.copy.reminder_prompt)}</button>` : ''}`;
   }
   main.scrollTop = 0;
 }
@@ -202,16 +227,19 @@ function render() {
 const inCat = (list, cat) => { const f = list.filter(x => !cat || !x.category || x.category.includes(cat)); return f.length ? f : list };
 const timeout = (ms) => new Promise(r => setTimeout(() => r(null), ms));
 async function pick(k, notId) {
-  const local = () => rnd(inCat(data[COLL[k]], S.cat), notId);
+  const pool = k === 'exercise' ? inFocus(inCat(data[COLL[k]], S.cat)) : inCat(data[COLL[k]], S.cat);
+  const local = () => rnd(pool.length ? pool : inCat(data[COLL[k]], S.cat), notId);
+  // The server picker knows categories, not focus: leave out this category's exercises that don't fit it.
+  const skip = k === 'exercise' && S.focus && pool.length ? inCat(data.exercises, S.cat).filter(x => !pool.includes(x)).map(x => x.id) : [];
   if (k === 'message' || !sb || !navigator.onLine) return local();
   try {
     await Promise.race([ready, timeout(2500)]); // let the anonymous device sign-in finish so weighting applies
     await flush();                              // so the shuffle/vote just made counts toward this pick
     const r = await Promise.race([
-      sb.rpc('pick_content', { p_content_type: k, p_category: S.cat, p_exclude: UUID.test(notId || '') ? [notId] : [] }),
+      sb.rpc('pick_content', { p_content_type: k, p_category: S.cat, p_exclude: [...skip, ...(UUID.test(notId || '') ? [notId] : [])].filter(id => UUID.test(id)) }),
       timeout(3000)
     ]);
-    return r && !r.error && r.data ? r.data : local();
+    return r && !r.error && r.data && !skip.includes(r.data.id) ? r.data : local();
   } catch { return local() }
 }
 let busy = false;
@@ -232,7 +260,7 @@ const reduceMotion = matchMedia('(prefers-reduced-motion: reduce)');
 const canTransition = () => !!document.startViewTransition && !reduceMotion.matches;
 if (canTransition()) document.documentElement.classList.add('vt');
 reduceMotion.addEventListener?.('change', () => document.documentElement.classList.toggle('vt', canTransition()));
-const ORDER = { welcome: 0, exercise: 1, affirmation: 2, message: 3 };
+const ORDER = { intro: -1, welcome: 0, focus: 0.5, exercise: 1, affirmation: 2, message: 3 };
 function swap(update, from, to) {
   if (!canTransition() || !$('#main').children.length || document.hidden) return update();
   document.documentElement.dataset.dir = from === to ? 'same' : from === 'message' && to === 'welcome' ? 'same' : ORDER[to] < ORDER[from] ? 'back' : 'fwd';
@@ -257,13 +285,17 @@ document.addEventListener('click', e => {
   if (a === 'tip-open') { S.showTip = false; $('.tipcard')?.remove(); return openSettings('support') }
   if (a === 'tip-later' || a === 'tip-never') { if (a === 'tip-never') saveTipsState({ never: true }); S.showTip = false; $('.tipcard')?.remove(); return $('[data-a=restart]')?.focus() }
   if (busy) return;
-  if (a === 'retry') { b.disabled = true; b.textContent = 'Trying…'; if (sb) loadWithWait().then(() => go('welcome')); else location.reload(); return }
+  if (a === 'retry') { b.disabled = true; b.textContent = 'Trying…'; if (sb) loadWithWait().then(() => go(home())); else location.reload(); return }
+  if (a === 'intro-done') { store.set('introSeen', true); return go('welcome') }
+  if (a === 'remind') return openSettings('remind');
   if (a === 'need') startCategory(b.dataset.c);
+  if (a === 'focus') chooseFocus(b.dataset.f);
+  if (a === 'back' && k === 'focus') return go('welcome');
   if (a === 'up' || a === 'down') return vote(k, it, a === 'up' ? 1 : -1);
   if (a === 'refresh') { log('refresh', it, k); go(k, true) }
   if (a === 'next') { log('next', it, 'exercise'); go('affirmation', true) }
   if (a === 'back' && k === 'affirmation') { log('back', it, 'affirmation'); go('exercise', false) }
-  if (a === 'back' && k === 'exercise') { log('back', it, 'exercise'); go('welcome') }
+  if (a === 'back' && k === 'exercise') { log('back', it, 'exercise'); go(focusOptions(S.cat).length ? 'focus' : 'welcome') }
   if (a === 'done') {
     store.set('completions', store.get('completions', 0) + 1); S.doneSinceProfile = (S.doneSinceProfile || 0) + 1;
     S.showTip = tipCardDue();
@@ -272,14 +304,39 @@ document.addEventListener('click', e => {
   if (a === 'restart') { log('restart', it, 'message'); S.votes = {}; S.showTip = false; S.helpOpened = false; go('welcome') }
 });
 
+// ---- First launch: a one-time intro before the home screen. People who used the app before this screen existed
+// (they have a saved last visit) skip it. Deep links (widgets, shortcuts, shared links) go straight to an exercise
+// and leave the intro for the next normal launch.
+const introDue = () => !store.get('introSeen', false) && !store.get('lastVisit', 0) && !!data?.copy?.intro_title;
+const home = () => introDue() ? 'intro' : 'welcome';
+
+// ---- Reminder offer on the affirmation screen (apps only; the website can't send reminders). It appears once
+// REMIND_FROM sessions are complete and retires for good at REMIND_UNTIL, or as soon as reminders are turned on.
+const REMIND_FROM = 3, REMIND_UNTIL = 8;
+function remindPromptDue() {
+  if (!canRemind || !data?.copy?.reminder_prompt || prefs.reminders.enabled || store.get('remindersSet', false)) return false;
+  const n = completions();
+  return n >= REMIND_FROM && n < REMIND_UNTIL;
+}
+
 // Start a session in a category (welcome buttons, widgets, shortcuts). Mindful minutes count from here.
 function startCategory(cat) {
   if (!NEEDS.some(n => n[0] === cat)) return;
-  S.cat = cat; S.ex = S.af = null; S.startedAt = Date.now();
+  S.cat = cat; S.focus = null; S.ex = S.af = null; S.startedAt = Date.now();
   if ($('#settings').open) $('#settings').close();
   if ($('#help').open) $('#help').close();
+  if (focusOptions(cat).length) return go('focus'); // e.g. sleep: "How can your sleep be improved?"
   go('exercise', true);
 }
+// A follow-up question that narrows a category (exercises.focus). Copy lives in app_copy as
+// <cat>_focus_question and <cat>_focus_options ("key|Label" per line; key "any" = no narrowing).
+const focusOptions = cat => (data?.copy?.[cat + '_focus_options'] || '').split('\n').filter(l => l.includes('|')).map(l => l.split('|'));
+function chooseFocus(f) {
+  S.focus = f === 'any' ? null : f; S.ex = S.af = null; S.startedAt = Date.now();
+  go('exercise', true);
+}
+// Exercises that fit the chosen focus (an exercise with no focus fits every one).
+const inFocus = list => !S.focus ? list : list.filter(x => !x.focus || x.focus.includes(S.focus));
 
 // ---- Settings: theme (stored as prefs.palette) + font
 const P = [['hearth', 'Hearth', '#d8c6b2', '#6f4a33'], ['moss', 'Moss', '#cfd6c8', '#4f6b50'], ['tide', 'Tide', '#cdd8de', '#3f6477'], ['pine', 'Pine', '#1f2a27', '#8fb8a3'], ['dusk', 'Dusk', '#2b2830', '#b9a7c9']];
@@ -289,24 +346,40 @@ const prefs = store.get('prefs', { palette: 'hearth', font: 'lora' });
 // Reminders are off until turned on; days 1 = Sunday ... 7 = Saturday.
 prefs.reminders ??= { enabled: false, time: '20:00', days: [1, 2, 3, 4, 5, 6, 7] };
 function applyPrefs() {
-  const d = document.documentElement;
   if (!P.some(p => p[0] === prefs.palette)) prefs.palette = 'hearth'; // e.g. a saved palette that no longer exists
-  d.dataset.palette = prefs.palette; d.dataset.font = prefs.font; store.set('prefs', prefs);
+  store.set('prefs', prefs);
+  applyTheme();
+}
+// Sleep sessions (exercise, affirmation and goodnight message) always show a dark theme, so the screen stays dim at
+// bedtime. A dark theme someone already chose is kept; any light one gives way to Dusk until they're back home.
+// This is never saved or synced: their own theme returns on the welcome screen.
+const DARK = ['pine', 'dusk'];
+const sleepDark = () => S.cat === 'sleep' && S.screen !== 'welcome' && S.screen !== 'intro' && !DARK.includes(prefs.palette);
+function applyTheme() {
+  const d = document.documentElement, palette = sleepDark() ? 'dusk' : prefs.palette;
+  d.dataset.font = prefs.font;
+  if (d.dataset.palette === palette && d.dataset.themed) return;
+  d.dataset.palette = palette; d.dataset.themed = '1';
   const bg = getComputedStyle(d).getPropertyValue('--bg').trim();
   $('meta[name=theme-color]').content = bg;
   syncSystemBars(bg);
 }
 const DAYS = [[1, 'S', 'Sunday'], [2, 'M', 'Monday'], [3, 'T', 'Tuesday'], [4, 'W', 'Wednesday'], [5, 'T', 'Thursday'], [6, 'F', 'Friday'], [7, 'S', 'Saturday']];
 let health = ''; // 'Apple Health' / 'Health Connect' when this device can save mindful minutes
+// Privacy and support pages: on the website, the site being viewed (so a deploy preview links to its own
+// pages); in the apps, which have no web address of their own, the live site.
+const pageBase = isNative ? SITE : location.origin;
 let sv = 'main'; // which Settings page is showing: main, sync, join, privacy
 function buildSettings(note = '') {
   if (sv === 'sync') return syncView(note);
   if (sv === 'join') return joinView('', note);
   if (sv === 'privacy') return privacyView(note);
   if (sv === 'support') return supportView(note);
+  if (sv === 'remind') return remindView(note);
   const r = prefs.reminders, online = !!(sb && deviceId);
-  $('#settings .body').innerHTML = `<h2>Theme</h2><div class="opts">${P.map(p =>
+  $('#settings .body').innerHTML = `<h1 class="sub-title menu-title">Settings</h1><h2>Theme</h2><div class="opts">${P.map(p =>
     `<button class="opt" data-p="${p[0]}" aria-pressed="${prefs.palette === p[0]}"><span class="sw" style="background:linear-gradient(135deg,${p[2]} 50%,${p[3]} 50%)"></span>${p[1]}</button>`).join('')}</div>
+    ${sleepDark() ? '<p class="small tight">Sleep exercises use a dark theme so your screen stays dim. Your theme comes back afterward.</p>' : ''}
     <h2>Font</h2><div class="opts">${F.map(f =>
     `<button class="opt text" data-f="${f[0]}" aria-pressed="${prefs.font === f[0]}" style="font-family:'${f[2]}',sans-serif">${f[1]}</button>`).join('')}</div>
     ${canVibrate ? `<h2>Vibration</h2><div class="opts"><button class="opt text" data-t="haptics" aria-pressed="${prefs.haptics !== false}">Gentle taps during breathing guides</button></div>` : ''}
@@ -321,14 +394,29 @@ function buildSettings(note = '') {
       ? ` This device is synced with ${profile.devices - 1} other device${profile.devices > 2 ? 's' : ''}.` : ''}</p>
     <div class="opts"><button class="opt text" data-v="sync" ${online ? '' : 'disabled'}>Show my sync code</button>
       <button class="opt text" data-v="join" ${online ? '' : 'disabled'}>I have a sync code</button></div>
-    ${data?.copy?.support_intro ? `<h2>Support Above Ground</h2><div class="opts"><button class="opt text" data-v="support">Leave a tip</button></div>` : ''}
+    ${data?.copy?.support_intro ? `<h2>Support Above Ground</h2><div class="opts"><button class="opt text" data-v="support">${esc(data.copy.support_cta || 'Support Above Ground')}</button></div>` : ''}
     <h2>Privacy</h2><div class="opts"><button class="opt text" data-v="privacy" ${online ? '' : 'disabled'}>Download or delete my data</button></div>
     ${online ? '' : '<p class="small tight">Sync and privacy tools need an internet connection.</p>'}
     <p class="small">Above Ground offers support for everyday moments. It isn't a replacement for professional care.
       <button class="link" data-a="help">Need more help?</button></p>
+    ${data?.copy?.contact_email ? `<h2>Contact</h2><p class="small tight">${esc(data.copy.contact_line || '')}
+      <a href="mailto:${esc(data.copy.contact_email)}">${esc(data.copy.contact_email)}</a></p>` : ''}
+    <p class="small"><a href="${pageBase}/privacy/" target="_blank" rel="noopener">Privacy policy</a> ·
+      <a href="${pageBase}/support/" target="_blank" rel="noopener">Support</a></p>
     <p class="small">Device: ${deviceId ? (deviceName ? `${esc(deviceName)} (${deviceId.slice(0, 8)})` : deviceId.slice(0, 8)) : 'offline mode'}<br>
-    Last Updated: ${version ? `${esc(fmtRelease(version.releasedAt))} (${esc(version.version)})` : 'unknown'}</p>
-    <button class="soft" data-close>Close</button>`;
+    Last Updated: ${version ? `${esc(fmtRelease(version.releasedAt))} (${esc(version.version)})` : 'unknown'}</p>`;
+}
+// Reminder setup opened from the affirmation screen's offer: days and time, then one button to turn them on.
+function remindView(note = '') {
+  const r = prefs.reminders, c = data?.copy || {};
+  setBody(`<h1 class="sub-title" tabindex="-1">${esc(c.reminder_title || '')}</h1><p class="tight">${esc(c.reminder_intro || '')}</p>
+    <div class="remind"><label>Time <input type="time" id="r-time" value="${esc(r.time)}"></label>
+    <div class="days" role="group" aria-label="Days">${DAYS.map(([n, l, full]) =>
+      `<button class="opt text day" data-day="${n}" aria-label="${full}" aria-pressed="${r.days.includes(n)}">${l}</button>`).join('')}</div></div>
+    ${note ? `<p class="small" role="status">${esc(note)}</p>` : ''}
+    <div class="remind-act">${r.enabled ? `<p class="small" role="status">${esc(c.reminder_on || '')}</p><button class="cta" data-close>${esc(c.reminder_done || 'Done')}</button>`
+      : `<button class="cta" data-t="reminders">${esc(c.reminder_turn_on || '')}</button>`}</div>`, !r.enabled);
+  if (r.enabled) $('#settings .remind-act .cta')?.focus();
 }
 async function updateReminders(ask) {
   const ok = await scheduleReminders(prefs.reminders, data?.reminders, ask);
@@ -346,14 +434,21 @@ function openSettings(view = 'main', words = '') {
   if (view === 'join' && words) joinView(words); else buildSettings();
   if (!$('#settings').open) $('#settings').showModal();
 }
-$('#settings').addEventListener('close', () => { sv = 'main'; stopScan() });
+$('#settings').addEventListener('close', () => { sv = 'main'; stopScan(); if (!remindPromptDue()) $('.remind-prompt')?.remove() });
 // Settings pages slide in from the side they lead to.
 function slideBody(dir) {
-  const b = $('#settings .body'); $('#settings').scrollTop = 0;
+  const b = $('#settings .body'); b.scrollTop = 0;
   b.classList.remove('enter-fwd', 'enter-back'); void b.offsetWidth; b.classList.add('enter-' + dir);
 }
+const COPY_BTN = `<button class="icon copy" data-s="copy" aria-label="Copy sync code"><svg viewBox="0 0 24 24" width="20" height="20" fill="none"
+  stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="8" y="8" width="12" height="12" rx="2.5"/>
+  <path d="M16 8V6.5A2.5 2.5 0 0 0 13.5 4h-7A2.5 2.5 0 0 0 4 6.5v7A2.5 2.5 0 0 0 6.5 16H8"/></svg></button>`;
 const sub = title => `<button class="link back-link" data-v="main">‹ Settings</button><h1 class="sub-title" tabindex="-1">${esc(title)}</h1>`;
-const setBody = (html, focus = true) => { const b = $('#settings .body'); b.innerHTML = html; if (focus) b.querySelector('.sub-title')?.focus() };
+const setBody = (html, focus = true) => {
+  const b = $('#settings .body'); b.innerHTML = html;
+  b.querySelectorAll('.code').forEach(fitCode);
+  if (focus) b.querySelector('.sub-title')?.focus();
+};
 const offlineNote = title => setBody(sub(title) + `<p>This needs an internet connection. Please try again when you're online.</p>`);
 const plural = (n, w) => `${n} ${w}${n === 1 ? '' : 's'}`;
 
@@ -371,29 +466,37 @@ async function devicesHtml() {
   return `<h2>Linked devices</h2><ul class="devices">${list.map(d => `<li><span>${esc(d.name)}${d.is_me ? ' <em>(this device)</em>' : ''}</span>
     ${d.is_me ? `<button class="link" data-s="leave">Stop syncing</button>` : `<button class="link" data-s="unlink" data-id="${esc(d.id)}">Remove</button>`}</li>`).join('')}</ul>`;
 }
-async function syncView(note = '', confirm = false) {
+// "Make a new code?" takes over the whole modal, like a dialog box, until it's confirmed or cancelled.
+function newCodeConfirm() {
+  setBody(`<h1 class="sub-title" tabindex="-1">Make a new sync code?</h1>
+    <p>Your current code will stop working for linking new devices. Devices already linked stay linked, keep
+      syncing, and will show the new code too.</p>
+    <div class="opts confirm"><button class="soft primary" data-s="newcode-yes">Make a new code</button>
+      <button class="soft" data-v="sync" data-dir="back">Cancel</button></div>`);
+  $('#settings .body').scrollTop = 0; slideBody('fwd');
+}
+async function syncView(note = '') {
   const title = 'Your sync code';
   if (!sb || !deviceId || !navigator.onLine) return offlineNote(title);
-  if (!$('#settings .sub-title')) setBody(sub(title) + '<p class="small">Loading…</p>');
+  if (!$('#settings .sub-title:not(.menu-title)')) setBody(sub(title) + '<p class="small">Loading…</p>');
   try {
     await loadProfile();
     let words = store.get('syncWords', '');
     const mine = !!words && !!profile?.sync_code_hash && await hashCode(words) === profile.sync_code_hash;
     if (!profile?.sync_code_hash) words = await makeCode();
-    const replace = confirm ? `<p>Make a new code? The old one stops working for new devices. Devices already linked stay linked.</p>
-        <div class="opts"><button class="soft" data-s="newcode-yes">Yes, make a new code</button><button class="soft" data-v="sync">Cancel</button></div>`
-      : `<button class="soft" data-s="newcode">Make a new code</button>`;
+    const replace = `<button class="soft" data-s="newcode">Make a new code</button>`;
     if (profile.sync_code_hash && !mine && !(await hashCode(words || '') === profile.sync_code_hash)) {
       return setBody(sub(title) + (note ? `<p class="small" role="status">${esc(note)}</p>` : '') +
         `<p>Your sync code was made on another device. Open Settings there to see it, or make a new code here.</p>${replace}${await devicesHtml()}`);
     }
-    const list = normalize(words).split(' ');
-    const qr = await qrSvg(syncLink(words), getComputedStyle(document.documentElement).getPropertyValue('--ink').trim());
+    const qr = await qrSvg(syncLink(words));
     setBody(sub(title) + (note ? `<p class="small" role="status">${esc(note)}</p>` : '') +
       `<p class="small tight">On your other device, open Settings → I have a sync code, then type these words or scan the QR code.</p>
-      <div class="secret" data-hidden><ol class="words">${list.map(w => `<li>${esc(w)}</li>`).join('')}</ol>
+      <div class="secret" data-hidden>
+        <div class="codebox"><textarea class="code" readonly rows="4" aria-label="Your 12-word sync code">${esc(normalize(words))}</textarea>
+          <div class="code-meta"><span>Word count: 12</span>${COPY_BTN}</div></div>
         <div class="qr" role="img" aria-label="QR code with your sync link">${qr}</div></div>
-      <div class="opts"><button class="soft" data-s="reveal" aria-pressed="false">Reveal</button><button class="soft" data-s="copy">Copy words</button></div>
+      <div class="opts"><button class="soft" data-s="reveal" aria-pressed="false">Reveal code</button></div>
       <p class="small">Anyone with these words can see and change your synced settings. Keep them somewhere private.
         If you lose every linked device, the code is gone too.</p>
       ${replace}${await devicesHtml()}`);
@@ -405,21 +508,27 @@ function stopScan() { scanning?.abort(); scanning = null; const s = $('#settings
 function joinView(prefill = '', note = '') {
   const title = 'I have a sync code';
   if (!sb || !deviceId || !navigator.onLine) return offlineNote(title);
-  const w = normalize(prefill).split(' ').filter(Boolean);
-  if (!$('#bip39')) document.body.insertAdjacentHTML('beforeend', `<datalist id="bip39">${wordlist.map(x => `<option value="${x}">`).join('')}</datalist>`);
-  setBody(sub(title) + `<p class="small tight">On your other device, open Settings → Show my sync code. Type its 12 words here${canScan ? ', or scan its QR code' : ''}.</p>
-    <div class="word-inputs">${Array.from({ length: 12 }, (_, i) => `<label><span aria-hidden="true">${i + 1}</span><input data-w="${i}" list="bip39"
-      autocomplete="off" autocapitalize="none" autocorrect="off" spellcheck="false" enterkeyhint="next" aria-label="Word ${i + 1}" value="${esc(w[i] || '')}"></label>`).join('')}</div>
+  setBody(sub(title) + `<p class="small tight">On your other device, open Settings → Show my sync code. Enter its 12 words here${canScan ? ', or scan its QR code' : ''}.</p>
+    <div class="codebox"><textarea class="code" id="join-code" rows="4" autocomplete="off" autocapitalize="none" autocorrect="off" spellcheck="false"
+      aria-label="Sync code words" aria-describedby="join-count" placeholder="Type or paste the 12 words, separated by spaces">${esc(normalize(wordsFromLink(prefill) || prefill))}</textarea>
+      <div class="code-meta"><span id="join-count" aria-live="polite"></span></div></div>
     ${canScan ? `<button class="soft" data-s="scan">Scan a QR code</button><div class="scan" hidden><video muted playsinline></video>
       <button class="link" data-s="scan-stop">Stop scanning</button></div>` : ''}
     <p class="small" role="status" id="join-note">${esc(note)}</p>
     <div id="join-act"><button class="cta" data-s="join">Link this device</button></div>`);
+  codeCount();
 }
-const joinWords = () => [...document.querySelectorAll('[data-w]')].map(i => i.value).join(' ');
-function fillWords(text, from = 0) {
-  const w = normalize(wordsFromLink(text) || text).split(' ').filter(Boolean), inputs = document.querySelectorAll('[data-w]');
-  w.slice(0, 12 - from).forEach((x, i) => { inputs[from + i].value = x });
-  inputs[Math.min(11, from + w.length)]?.focus();
+const joinWords = () => $('#join-code')?.value || '';
+function fillWords(text) { const t = $('#join-code'); t.value = normalize(wordsFromLink(text) || text); codeCount(); t.focus() }
+// Code boxes grow to fit their words (no empty space below), up to the CSS max height.
+function fitCode(t) { if (!t) return; t.style.height = 'auto'; t.style.height = t.scrollHeight + 'px' }
+// Live word count, and which words (if any) aren't in the word list, so typos show up before linking.
+function codeCount() {
+  const t = $('#join-code'), out = $('#join-count'); if (!t || !out) return;
+  fitCode(t);
+  const w = normalize(t.value).split(' ').filter(Boolean), odd = w.filter(x => !WORDS.has(x));
+  out.textContent = `Word count: ${w.length} of 12` + (odd.length ? ` · Check: ${odd.slice(0, 3).join(', ')}` : '');
+  out.classList.toggle('warn', odd.length > 0 || w.length > 12);
 }
 async function doJoin(keep) {
   const note = t => { $('#join-note').textContent = t }, words = joinWords();
@@ -446,7 +555,7 @@ async function doJoin(keep) {
 
 // ---- Privacy: download everything stored for this profile, or delete it.
 let delScope = 'device';
-function privacyView(note = '', confirm = false) {
+function privacyView(note = '') {
   const title = 'Your data';
   if (!sb || !deviceId || !navigator.onLine) return offlineNote(title);
   const many = profile?.devices > 1;
@@ -462,22 +571,31 @@ function privacyView(note = '', confirm = false) {
     ${many ? `<div class="opts"><button class="opt text" data-s="scope" data-scope="device" aria-pressed="${delScope === 'device'}">This device only</button>
       <button class="opt text" data-s="scope" data-scope="everything" aria-pressed="${delScope === 'everything'}">Everything, on all linked devices</button></div>` : ''}
     <p class="small tight">${what} It happens right away and can't be undone.</p>
-    ${confirm ? `<p>Are you sure?</p><div class="opts"><button class="soft danger" data-s="delete-yes">Yes, delete</button><button class="soft" data-s="delete-no">Cancel</button></div>`
-      : '<button class="soft danger" data-s="delete">Delete my data</button>'}`, !confirm);
-  if (confirm) $('[data-s=delete-no]')?.focus();
+    <button class="soft danger" data-s="delete">Delete my data</button>`);
+}
+// "Delete my data?" takes over the whole modal, like a dialog box, until it's confirmed or cancelled.
+function deleteConfirm() {
+  const all = delScope === 'everything' && profile?.devices > 1;
+  setBody(`<h1 class="sub-title" tabindex="-1">${all ? 'Delete everything on all linked devices?' : 'Delete my data?'}</h1>
+    <p>${all ? 'Your settings, history and sync code will be deleted from every linked device.'
+      : profile?.devices > 1 ? "This device's history and anonymous ID will be deleted. Your other linked devices keep theirs."
+      : 'Your settings, history and anonymous ID will be deleted.'} This happens right away and can't be undone.</p>
+    <div class="opts confirm"><button class="soft danger primary-danger" data-s="delete-yes">Delete</button>
+      <button class="soft" data-s="delete-no">Cancel</button></div>`);
+  $('#settings .body').scrollTop = 0; slideBody('fwd');
 }
 
 // Sync, join and privacy actions.
 $('#settings').addEventListener('click', async e => {
   const v = e.target.closest('[data-v]'), b = e.target.closest('[data-s]');
-  if (v) { stopScan(); sv = v.dataset.v; if (sv === 'join') joinView(); else buildSettings(); return slideBody(sv === 'main' ? 'back' : 'fwd') }
+  if (v) { stopScan(); sv = v.dataset.v; if (sv === 'join') joinView(); else buildSettings(); return slideBody(v.dataset.dir || (sv === 'main' ? 'back' : 'fwd')) }
   if (!b) return;
   const s = b.dataset.s;
   try {
-    if (s === 'reveal') { const box = $('.secret'), on = box.hasAttribute('data-hidden'); box.toggleAttribute('data-hidden', !on); b.textContent = on ? 'Hide' : 'Reveal'; b.setAttribute('aria-pressed', on) }
-    if (s === 'copy') { await navigator.clipboard.writeText(normalize(store.get('syncWords', ''))); b.textContent = 'Copied' }
-    if (s === 'newcode') syncView('', true);
-    if (s === 'newcode-yes') { await makeCode(); syncView('Your new code is ready. Linked devices stay linked.') }
+    if (s === 'reveal') { const box = $('.secret'), on = box.hasAttribute('data-hidden'); box.toggleAttribute('data-hidden', !on); b.textContent = on ? 'Hide code' : 'Reveal code'; b.setAttribute('aria-pressed', on) }
+    if (s === 'copy') { await navigator.clipboard.writeText(normalize(store.get('syncWords', ''))); b.setAttribute('aria-label', 'Copied'); b.classList.add('done'); announce('Sync code copied') }
+    if (s === 'newcode') newCodeConfirm();
+    if (s === 'newcode-yes') { b.disabled = true; await makeCode(); setBody(sub('Your sync code') + '<p class="small">Loading…</p>'); await syncView('Your new code is ready. Linked devices stay linked.'); slideBody('back') }
     if (s === 'unlink') { b.disabled = true; await sb.rpc('unlink_device', { p_device: b.dataset.id }); syncView('That device is no longer linked. It keeps its own settings.') }
     if (s === 'leave') { b.disabled = true; await sb.rpc('unlink_device', { p_device: deviceId }); store.set('syncWords', ''); sv = 'main'; await loadProfile(); buildSettings() }
     if (s === 'scan') {
@@ -494,8 +612,8 @@ $('#settings').addEventListener('click', async e => {
     if (s === 'join-keep') await doJoin(true);
     if (s === 'join-fresh') await doJoin(false);
     if (s === 'scope') { delScope = b.dataset.scope; privacyView() }
-    if (s === 'delete') privacyView('', true);
-    if (s === 'delete-no') privacyView();
+    if (s === 'delete') deleteConfirm();
+    if (s === 'delete-no') { privacyView(); slideBody('back') }
     if (s === 'export') {
       b.disabled = true; b.textContent = 'Preparing…';
       const { data: d, error } = await sb.rpc('export_my_data');
@@ -516,20 +634,24 @@ $('#settings').addEventListener('click', async e => {
     else { b.disabled = false; announce('Something went wrong. Please try again.'); const n = $('#settings [role=status]'); if (n) n.textContent = 'Something went wrong. Please try again.' }
   }
 });
-// Pasting or typing several words into one box fills the following boxes.
+// Typing or pasting the words (or a whole sync link) into the box.
 $('#settings').addEventListener('input', e => {
-  const i = e.target.closest('[data-w]'); if (!i) return;
+  if (e.target.id !== 'join-code') return;
   if ($('#join-note')) $('#join-note').textContent = '';
-  if (/[\s,.#-]/.test(i.value.trim()) || i.value.trim().split(/\s+/).length > 1) fillWords(i.value, +i.dataset.w);
-  else if (i.value.endsWith(' ')) { i.value = i.value.trim(); document.querySelector(`[data-w="${+i.dataset.w + 1}"]`)?.focus() }
+  const fromLink = /[#/]/.test(e.target.value) && wordsFromLink(e.target.value);
+  if (fromLink) e.target.value = fromLink;
+  codeCount();
 });
+$('#settings').addEventListener('keydown', e => { if (e.target.id === 'join-code' && e.key === 'Enter') { e.preventDefault(); doJoin() } });
 
 // ---- Tip jar. Tips unlock nothing. Settings → Support Above Ground always has them; the completion screen offers
 // them gently: first at the 3rd completed session, then at most once every 10 completions and 30 days, never in a
 // session where "Need more help?" was opened, and never again after "Don't show again". State syncs in the profile.
 let tipList = null; // [{ label, price, productId?, url? }] available on this device
 async function loadTips() {
-  const rows = (data?.tips || []).filter(t => t.platform === (isNative ? platform : 'web'));
+  // The live website uses the 'web' rows; previews and local builds use the test-mode 'web-test' rows.
+  const live = /(^|\.)aboveground\.app$|^above-ground\.netlify\.app$/.test(location.hostname);
+  const rows = (data?.tips || []).filter(t => t.platform === (isNative ? platform : live ? 'web' : 'web-test'));
   if (!isNative) return (tipList = rows.filter(t => t.url).map(t => ({ label: t.label, price: t.label, url: t.url })));
   const products = await tipProducts(rows.map(t => t.product_id).filter(Boolean));
   return (tipList = rows.map(t => ({ t, p: products.find(p => p.identifier === t.product_id) })).filter(x => x.p)
@@ -537,15 +659,13 @@ async function loadTips() {
 }
 async function supportView(note = '', thanks = false) {
   const c = data?.copy || {};
-  if (!$('#settings .sub-title')) setBody(sub('Support Above Ground') + '<p class="small">Loading…</p>');
+  if (!$('#settings .sub-title:not(.menu-title)')) setBody(sub('Support Above Ground') + '<p class="small">Loading…</p>');
   const tips = tipList || await loadTips().catch(() => []);
-  const costs = (c.support_costs || '').split('\n').filter(Boolean).map(l => l.split(/:\s*/));
   setBody(sub('Support Above Ground') + (note ? `<p class="small" role="status">${esc(note)}</p>` : '') +
     (thanks ? `<p class="thanks" tabindex="-1">${esc(c.tip_thanks || '')}</p>` : '') +
     `<p>${esc(c.support_intro || '')}</p>
-    ${costs.length ? `<h2>What it costs to run</h2><dl class="costs">${costs.map(([k, v]) => `<div><dt>${esc(k)}</dt><dd>${esc(v || '')}</dd></div>`).join('')}</dl>` : ''}
-    <h2>Leave a tip</h2>
-    ${tips.length ? `<div class="tips">${tips.map((t, i) => `<button class="tip" data-tip="${i}" aria-label="Tip ${esc(t.price)}">${esc(t.price)}</button>`).join('')}</div>`
+    <h2>${esc(c.support_cta || '')}</h2>
+    ${tips.length ? `<div class="tips">${tips.map((t, i) => `<button class="tip" data-tip="${i}" aria-label="${esc(c.support_cta || '')}: ${esc(t.price)}">${esc(t.price)}</button>`).join('')}</div>`
       : `<p class="small tight">${esc(c.tips_unavailable || '')}</p>`}`, !thanks);
   if (thanks) $('#settings .thanks')?.focus();
 }
@@ -620,7 +740,10 @@ $('#settings').addEventListener('click', async e => {
     if (prefs.health) prefs.health = false;
     else { prefs.health = await requestHealth(); if (!prefs.health) note = `Above Ground can't save to ${health} yet. You can allow it in ${health}.` }
   }
-  if (t?.dataset.t === 'reminders') { prefs.reminders.enabled = !prefs.reminders.enabled; applyPrefs(); note = await updateReminders(true) }
+  if (t?.dataset.t === 'reminders') {
+    prefs.reminders.enabled = !prefs.reminders.enabled; applyPrefs(); note = await updateReminders(true);
+    if (prefs.reminders.enabled) store.set('remindersSet', true);
+  }
   if (day) {
     const n = +day.dataset.day, d = prefs.reminders.days;
     prefs.reminders.days = d.includes(n) ? d.filter(x => x !== n) : [...d, n].sort();
@@ -658,8 +781,7 @@ function buildHelp() {
     ${countries.length ? `<label class="small country">Showing help for
       <select id="help-country">${countries.map(([c, n]) => `<option value="${esc(c)}" ${c === code ? 'selected' : ''}>${esc(n)}</option>`).join('')}
       <option value="*" ${here.length ? '' : 'selected'}>Another country</option></select></label>` : ''}
-    <p class="small">Above Ground offers support for everyday moments. It isn't a replacement for professional care.</p>
-    <button class="soft" data-close>Close</button>`;
+    <p class="small">Above Ground offers support for everyday moments. It isn't a replacement for professional care.</p>`;
 }
 // 116123 -> 116 123, 131114 -> 13 11 14; short codes (988) stay as they are.
 const fmtPhone = n => n.length === 6 && n.startsWith('13') ? `${n.slice(0, 2)} ${n.slice(2, 4)} ${n.slice(4)}` : n.length === 6 ? `${n.slice(0, 3)} ${n.slice(3)}` : n;
@@ -697,9 +819,9 @@ onAppPause(flush);
 async function loadContent() {
   // Content is public, so it loads whether or not the device has signed in.
   const [x, a, m, g, c, r, tp, cp] = await Promise.all([
-    sb.from('exercises').select('id,title,kind,body,category,research_summary,sources,audio_url').eq('is_active', true),
+    sb.from('exercises').select('id,title,kind,body,category,focus,research_summary,sources,audio_url').eq('is_active', true),
     sb.from('affirmations').select('id,body_html,category').eq('is_active', true),
-    sb.from('completion_messages').select('id,body').eq('is_active', true),
+    sb.from('completion_messages').select('id,body,category').eq('is_active', true),
     sb.from('greetings').select('id,body,contexts').eq('is_active', true),
     sb.from('crisis_resources').select('country,country_name,name,description,phone,sms,sms_body,url,emergency,sort').eq('is_active', true).order('sort'),
     sb.from('reminder_messages').select('id,body').eq('is_active', true),
@@ -788,7 +910,7 @@ async function init() {
       if (!deviceName && saved && saved.id === session?.user.id) deviceName = saved.name;
     }).catch(() => {});
   }
-  go('welcome');
+  go(home());
   appReady();
   started = true;
   if (pendingLink) handleLink(pendingLink);

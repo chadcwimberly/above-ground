@@ -67,6 +67,8 @@ costing a production deploy.)
 - The app only talks to profiles through functions: `get_profile`, `save_profile`, `set_sync_code`,
   `join_profile` (5 tries/hour), `linked_devices`, `unlink_device`, `export_my_data`, `delete_my_data`.
   The tables have row-level security with no policies on purpose; the advisor's "no policy" notes are expected.
+- Sleep asks a follow-up ("How can your sleep be improved?"); the answer filters by `exercises.focus` (copy: `app_copy.sleep_focus_*`).
+- Sleep sessions show Dusk unless Pine or Dusk is chosen (`sleepDark()`/`applyTheme()` in `src/main.js`); never saved.
 - Synced settings: theme, font, vibration, reminder time/days, crisis-line country (latest change wins).
   Reminders on/off and Health stay per device. Add a new synced setting to `SYNCED` in `src/main.js`.
 - Sync words live only on devices (`syncWords`); the server keeps a SHA-256 hash. `src/sync.js` has the word
@@ -75,16 +77,60 @@ costing a production deploy.)
 ## 2b. Tip jar
 
 - `tip_options` rows: iOS/Android name the consumable product IDs `app.aboveground.tip.small|medium|large`;
-  web rows need a `url` (a Stripe Payment Link or similar). A row with no url (web) or no store product (apps)
-  stays hidden. Never link the apps to web payments: Apple and Google require in-app purchase for tips there.
-- Copy (`support_intro`, `support_costs` as "Item: cost" lines, `tip_card`, `tip_thanks`, `tips_unavailable`)
-  lives in `app_copy`. Update `support_costs` when running costs change.
+  the web rows hold Stripe Payment Links. A row shows only when `is_active` is true and, on the web, has a `url`;
+  in the apps, only when the store returns the product.
+- Copy (`support_intro`, `support_cta` (the "Leave a Tip" label), `tip_card`, `tip_card_button`,
+  `tip_thanks`, `tips_unavailable`, `contact_email`, `contact_line`) lives in `app_copy`.
+- **Wording: buttons say "Leave a Tip"; body text says "contribution(s)"; never "donate"/"donation".** Chad is an individual, not a charity: Stripe
+  allows donations only for a charitable purpose, Apple only for approved nonprofits, and the money covers hosting.
+  Don't promise how funds are used beyond that. (Code and table names keep the internal word "tip".) (`support_costs` is no longer shown in the app.)
 - Card rules are in `tipCardDue()` in `src/main.js`. Purchases use `@capgo/native-purchases` (StoreKit 2 /
   Play Billing, no receipt server; tips are consumed right away).
+
+### Stripe links: sandbox vs live
+
+| | Sandbox (test mode) | Live |
+| --- | --- | --- |
+| `tip_options.platform` | `web-test` | `web` |
+| Links | `donate.stripe.com/test_…` / `buy.stripe.com/test_…` | `donate.stripe.com/…` (no `test_`) |
+| Used on | Deploy previews, branch deploys, local builds (any host that isn't the live site) | Only `aboveground.app` and `above-ground.netlify.app` (see `loadTips()`) |
+| `is_active` | `true` | `false` until launch |
+| Payments | Fake; test card 4242 4242 4242 4242, any future date, any CVC | Real money to Chad's Stripe account |
+
+- **When to turn live links on:** only when Chad says the app is ready to go live in the app stores. Until then
+  the live rows stay `is_active = false`, so the live site shows "Tips aren't available here yet."
+- **How to turn them on (database only, no app release needed):**
+  `update public.tip_options set is_active = true where platform = 'web';`
+  To turn them off again: the same with `false`. Then open aboveground.app → Settings → Support Above Ground and
+  check the three buttons open the live Stripe pages (don't complete a payment).
+- **Never** put a `test_` link in a `web` row or a live link in a `web-test` row, and never show any Stripe link
+  in the iOS or Android apps: Apple and Google require their own in-app purchase for tips, and the app code only
+  uses store products there.
+- If Chad replaces a link in Stripe, update that row's `url`; keep amounts matching the in-app tips ($2, $5, $10).
+- Stripe setup: the links are **tips** with tax code **Optional Gratuity (`txcd_90020001`)**, not donations.
+  Stripe only allows tips for a good or service provided, while donations must be tied to a charitable purpose.
+  Above Ground (a free app) is the service. The tax code only changes anything if Stripe Tax is turned on.
+
+## 2c. First-launch welcome and reminder offer
+
+- **Welcome (intro):** shown once per device before the home screen, when `introSeen` isn't saved and the device
+  has no earlier visit (`lastVisit`). "Let's go" saves `introSeen`. Its text is `app_copy` `intro_title`,
+  `intro_body`, `intro_cta` and `intro_points` (one "icon|text" line per promise; icons are `private`, `nosell`,
+  `noads`, or `check` as the fallback, defined in `ICON` in `src/main.js`). The logo is `public/icon-512.png`.
+  If `intro_title` is missing, the screen is skipped.
+- **Reminder offer:** apps only (`canRemind`). Shown on the affirmation screen while completions are from
+  `REMIND_FROM` (3) up to `REMIND_UNTIL` (8) and reminders have never been turned on (`remindersSet`). It opens
+  the `remind` Settings view. Copy: `app_copy` `reminder_*`.
 
 ## 3. Native projects (iOS / Android)
 
 - Capacitor 8, app ID `app.aboveground`. iOS uses Swift Package Manager. Android uses Java 21.
+- **Logo and icons:** the source artwork is `assets/logo-source.png` (the sandstone worry stone on cream).
+  `python3 scripts/make-logo.py assets/logo-source.png .` cuts the stone out (keeping its shadow) and writes the
+  `assets/` inputs plus the web icons in `public/` (favicons, Apple touch icon, PWA and maskable icons). Then
+  `npm run assets` makes the iOS/Android icon and splash sets, and `npm run native` syncs them. To change the logo,
+  replace the source image and rerun those three steps; the script's sizes keep the stone inside each platform's
+  safe area.
 - **Custom plugins:** iOS `HealthPlugin.swift` is registered in `ios/App/App/MainViewController.swift`. Android
   `HealthPlugin.java` is registered in `MainActivity.java`. Register any new native plugin the same way and call it
   from JS through `registerPlugin()` in `src/platform.js`.
@@ -141,8 +187,10 @@ an optional later step. Build numbers come from `scripts/sync-native-version.mjs
 - The domain must also be added under Netlify → Domain management for the site. Netlify then issues HTTPS.
 - Email: ImprovMX free plan with a catch-all `*` forwarding to Chad's Gmail. It's receive-only; replies go from
   Gmail. Forward Email is the alternative if he wants to send as @aboveground.app.
-- Once the domain is live, use https://aboveground.app in docs and links. The old netlify.app address keeps
-  working, but saved settings don't carry over between the two addresses.
+- The domain is live: use https://aboveground.app in docs and links. The old netlify.app address keeps
+  working, but saved settings don't carry over between the two addresses (sync codes bridge them).
+- Email: ImprovMX forwards every address @aboveground.app to Chad's Gmail; the public address is
+  hello@aboveground.app (`app_copy.contact_email`, privacy and support pages).
 
 ## 8. Sandbox limits (Claude sessions)
 
@@ -159,15 +207,22 @@ Chad's own steps (accounts, DNS, store setup, secrets) are numbered in the "All 
 Human Tasks doc: https://claude.ai/artifact/Uov4eGeBoRhFziy9vH6qYk. Keep it in step with this list.
 
 
-- [ ] Chad confirms the Netlify domain + GoDaddy DNS; then verify https://aboveground.app and switch the docs to it.
-- [ ] Chad sets up ImprovMX; then send a test email to any@aboveground.app.
+- [x] aboveground.app live on Netlify with HTTPS.
+- [x] Email forwarding (ImprovMX).
 - [x] "Why this works" summaries approved and loaded for all 56 exercises (2026-11-17).
 - [x] Smooth animations (1.9.0). Motion lives in the "Motion" block of `index.html` and `swap()` in `src/main.js`;
   everything must stay off under reduced motion.
-- [ ] Privacy and support pages for aboveground.app (needs Chad's contact email).
-- [ ] Web tip links into `tip_options` (needs Chad's three payment links).
+- [x] Privacy and support pages (`public/privacy/`, `public/support/`, styled by `public/pages.css`), contact
+  hello@aboveground.app (2.0.0). Update the privacy policy whenever what the app stores changes.
+- [ ] At store launch (Chad's call): turn on the live web tip links (section 2b).
 - [ ] Universal Links / App Links for `aboveground.app/sync` (needs the Apple Team ID and the Play app-signing SHA-256).
 - [x] Sync code (12 words + QR) and delete-my-data (1.7.0).
 - [x] Tip jar (1.8.0). Goes live per platform once the store products / web payment links exist (see below).
 - [ ] Signed release workflow → TestFlight / Play internal testing (needs developer accounts).
+- [ ] **After 2.0.0 is live:** turn on the goodnight messages:
+  `update completion_messages set is_active = true where 'sleep' = any(category);` (kept off so older app versions,
+  which ignore the category, don't show "sleep well" during the day).
+- [ ] Sleep: get Chad's OK on the 12 "Why this works" drafts, then write them to `exercises.research_summary`/`sources`.
+- [ ] Sleep choice in the native widgets, Siri/App Shortcuts and Android shortcuts (they still offer three choices;
+  the deep link `aboveground://start?feeling=sleep` already works).
 - [ ] Audio guides (someone Chad knows may record them; `exercises.audio_url` is ready).

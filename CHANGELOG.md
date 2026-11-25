@@ -4,6 +4,62 @@ All notable changes to Above Ground. Versions follow [Semantic Versioning](https
 MAJOR for changes that break saved data or flows, MINOR for new features, PATCH for fixes.
 The exact time each version went live is shown in the app under Settings → Last Updated.
 
+## 2.0.0 — 2026-11-25
+A major release: sleep exercises, plus everything first planned as 1.10.0.
+- After "I'm getting ready for sleep", a second question: "How can your sleep be improved?" with Physically
+  restless, Mentally restless, Not tired, or I'll try anything. The answer narrows which sleep exercises are shown
+  (body: breathing, muscle relaxation, body scan; mind: imagery, lists, letting go of trying; not tired: winding
+  down in dim light, getting up until sleepy). Back from a sleep exercise returns to the question. The question and
+  its choices live in `app_copy` (`sleep_focus_question`, `sleep_focus_options`); which exercises fit each choice is
+  `exercises.focus` (migration `20261125100840_exercise_focus`). A 12th sleep exercise, "Dim the lights and do
+  something calm", for when you're not tired yet.
+- Sleep exercises: a fourth choice on the home screen, "I'm getting ready for sleep", for winding down right before
+  bed or in bed. 11 research-based exercises (slow breathing, counting breaths, head-to-toe muscle relaxation, a body
+  scan, a calm place, picturing random things, tomorrow's to-do list, a worry's next step, three good things,
+  letting go of trying to sleep, and what to do if sleep won't come), 8 bedtime affirmations and 5 goodnight
+  messages. The website also accepts `?start=sleep`, and the apps `aboveground://start?feeling=sleep`.
+- Sleep sessions switch to a dark theme (Dusk) from the exercise through the goodnight message, unless a dark theme
+  (Pine or Dusk) is already chosen. It isn't saved or synced; the person's own theme returns on the home screen, and
+  Settings says so while it's on. The end-of-timer tap is lighter in sleep sessions.
+- Completion messages now have categories, so bedtime sessions end with "good night" rather than "back to your day".
+- Database: `sleep` added to `exercise_type`, `completion_messages.category`, a `sleep` topic tag (migrations
+  `20261124164740_sleep_category`, `20261124164749_completion_message_category`).
+- First-launch welcome: a one-time screen with the logo, what Above Ground is for, three promises with icons
+  (no personal information gathered, data never sold, no ads) and a "Let's go" button that leads to the home
+  screen and never shows again. People who already used the app skip it; a shortcut, widget or shared link on a
+  brand-new install goes straight to the exercise and leaves the welcome for the next normal launch. Copy lives in
+  `app_copy` (`intro_title`, `intro_body`, `intro_points` as "icon|text" lines, `intro_cta`).
+- Reminder offer (iOS and Android apps): from the 4th session, the affirmation screen shows "Want a gentle reminder
+  to come back?" under Done. It opens a small reminder setup (days, time, "Turn on reminders"). The offer stops
+  for good once reminders are turned on, or after the 8th session if they never are. Copy lives in `app_copy`
+  (`reminder_prompt`, `reminder_title`, `reminder_intro`, `reminder_turn_on`, `reminder_on`, `reminder_done`).
+- Reminder day buttons fit on one row inside the modals.
+- "Why this works" is quieter: a small, muted link with a chevron instead of a filled panel, with smaller text and
+  sources, so it no longer competes with the exercise.
+- Website on tall windows: the app stops growing at 50rem (800px) and sits centered vertically, so the exercise
+  and its buttons stay together instead of being split by a tall empty gap. The apps still fill the screen.
+- Privacy policy and support pages at `aboveground.app/privacy` and `aboveground.app/support` (both stores need
+  them), linked from the bottom of Settings. On the website the links stay on the site being viewed (so a deploy
+  preview opens its own pages); the apps open aboveground.app.
+- Settings and "Need more help?" open as a centered modal with an X in the corner (no more bottom drawer or
+  Close button). Buttons inside them use a smaller menu size, and every text button in the app now shares one
+  corner radius (icon buttons stay round).
+- Sync code: the 12 words sit in one box (shown read-only with a word count and copy button, or typed/pasted
+  when linking, with a live count that flags words not in the list); the QR code uses round dots and rounded
+  corners on a light tile so it scans in every theme.
+- The sync code box fits its words with no empty space below. "Make a new code" and "Delete my data" ask for
+  confirmation on their own screen in the modal (Cancel goes back) instead of adding text at the bottom.
+- Text inside the modals uses one body size (1rem) instead of the larger full-screen size.
+- "Support Above Ground" now speaks of contributions: new intro text, a "Leave a Tip" button, and matching card,
+  thank-you and website wording. The running-costs table is gone from this screen. All of it lives in `app_copy` (`support_cta` and
+  `tip_card_button` are new).
+- Settings shows a contact line with hello@aboveground.app (text and address live in `app_copy`).
+- Website tips: the live site uses the `web` tip rows, while deploy previews and local builds use new `web-test`
+  rows holding Stripe test-mode links, so the tip flow can be tried without real payments.
+- New logo: a layered sandstone worry stone. It's the app icon on iOS and Android (including Android's adaptive
+  and round icons), the splash screen, the website favicon, the home-screen icon (Apple touch icon and PWA
+  icons, with a maskable version) and the icon on the privacy and support pages. Replaces the placeholder circles.
+
 ## 1.9.0 — 2026-11-17
 - Smooth motion throughout: screens slide forward and back (View Transitions where supported, a gentle rise
   elsewhere) while the header stays still; Settings and "Need more help?" slide up as sheets and back down;

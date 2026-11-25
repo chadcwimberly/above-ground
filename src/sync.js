@@ -24,10 +24,20 @@ export function wordsFromLink(text) {
   return isValid(w) ? w : null;
 }
 
-// QR code as an SVG string, drawn in the theme's ink color.
-export async function qrSvg(text, color) {
+// QR code as an SVG string: round dots, with rounded "eyes" in three corners. Always dark on light (drawn on a light
+// tile by the page) so every camera can read it, whatever the theme.
+export async function qrSvg(text, color = '#2a211b') {
   const QR = (await import('qrcode')).default;
-  return QR.toString(text, { type: 'svg', margin: 1, errorCorrectionLevel: 'M', color: { dark: color || '#000', light: '#0000' } });
+  const { size: n, data } = QR.create(text, { errorCorrectionLevel: 'M' }).modules;
+  const q = 2, on = (x, y) => data[y * n + x];
+  const eye = (x, y) => (x < 7 && y < 7) || (x >= n - 7 && y < 7) || (x < 7 && y >= n - 7);
+  let dots = '';
+  for (let y = 0; y < n; y++) for (let x = 0; x < n; x++)
+    if (on(x, y) && !eye(x, y)) dots += `<circle cx="${x + q + .5}" cy="${y + q + .5}" r=".43"/>`;
+  const corner = (x, y) => `<rect x="${x + q + .5}" y="${y + q + .5}" width="6" height="6" rx="2" fill="none" stroke="${color}" stroke-width="1"/>` +
+    `<rect x="${x + q + 2}" y="${y + q + 2}" width="3" height="3" rx="1"/>`;
+  return `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${n + 2 * q} ${n + 2 * q}" fill="${color}" shape-rendering="geometricPrecision">` +
+    dots + corner(0, 0) + corner(n - 7, 0) + corner(0, n - 7) + '</svg>';
 }
 
 // Scan a QR code with the camera into `video`. Resolves with the text, or null if stopped.
