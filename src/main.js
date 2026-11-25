@@ -83,7 +83,7 @@ const NEEDS = [['anxiety', "I'm feeling anxious"], ['depression', "I'm feeling d
 // ---- State
 const KEY = { exercise: 'ex', affirmation: 'af', message: 'msg' };
 const COLL = { exercise: 'exercises', affirmation: 'affirmations', message: 'messages' };
-const S = { screen: 'welcome', cat: null, greeting: '', ex: null, af: null, msg: null, votes: {} };
+const S = { screen: 'welcome', cat: null, focus: null, greeting: '', ex: null, af: null, msg: null, votes: {} };
 let data = store.get(CACHE_KEY, null), sb = null, deviceId = null, deviceName = null, tick, ready = Promise.resolve();
 let version = store.get('version', null);
 const sessionId = crypto.randomUUID();
@@ -169,7 +169,7 @@ function extras(it) {
 function render() {
   clearInterval(tick); stopPacer(); $('#guide-audio')?.pause(); applyTheme();
   const k = S.screen, it = cur(), main = $('#main'), foot = $('#foot');
-  $('#back').style.visibility = k === 'affirmation' || k === 'exercise' ? 'visible' : 'hidden';
+  $('#back').style.visibility = k === 'affirmation' || k === 'exercise' || k === 'focus' ? 'visible' : 'hidden';
   main.className = k === 'exercise' ? '' : k === 'affirmation' ? 'center has-blob' : 'center';
   if (k === 'welcome' && !data) {
     // No content yet: first launch with no connection. Nothing is shipped in the app, so ask to try again.
@@ -191,6 +191,13 @@ function render() {
   if (k === 'welcome') {
     main.innerHTML = `<div class="screen welcome">${S.greeting ? `<h1>${esc(S.greeting)}</h1>` : ''}<div class="needs">${NEEDS.map(n =>
       `<button class="need" data-a="need" data-c="${n[0]}">${esc(n[1])}</button>`).join('')}</div></div>`;
+    foot.innerHTML = '';
+    main.scrollTop = 0;
+    return;
+  }
+  if (k === 'focus') {
+    main.innerHTML = `<div class="screen welcome"><h1>${esc(data.copy[S.cat + '_focus_question'] || '')}</h1><div class="needs">${focusOptions(S.cat).map(([f, l]) =>
+      `<button class="need" data-a="focus" data-f="${esc(f)}">${esc(l)}</button>`).join('')}</div></div>`;
     foot.innerHTML = '';
     main.scrollTop = 0;
     return;
@@ -220,16 +227,19 @@ function render() {
 const inCat = (list, cat) => { const f = list.filter(x => !cat || !x.category || x.category.includes(cat)); return f.length ? f : list };
 const timeout = (ms) => new Promise(r => setTimeout(() => r(null), ms));
 async function pick(k, notId) {
-  const local = () => rnd(inCat(data[COLL[k]], S.cat), notId);
+  const pool = k === 'exercise' ? inFocus(inCat(data[COLL[k]], S.cat)) : inCat(data[COLL[k]], S.cat);
+  const local = () => rnd(pool.length ? pool : inCat(data[COLL[k]], S.cat), notId);
+  // The server picker knows categories, not focus: leave out this category's exercises that don't fit it.
+  const skip = k === 'exercise' && S.focus && pool.length ? inCat(data.exercises, S.cat).filter(x => !pool.includes(x)).map(x => x.id) : [];
   if (k === 'message' || !sb || !navigator.onLine) return local();
   try {
     await Promise.race([ready, timeout(2500)]); // let the anonymous device sign-in finish so weighting applies
     await flush();                              // so the shuffle/vote just made counts toward this pick
     const r = await Promise.race([
-      sb.rpc('pick_content', { p_content_type: k, p_category: S.cat, p_exclude: UUID.test(notId || '') ? [notId] : [] }),
+      sb.rpc('pick_content', { p_content_type: k, p_category: S.cat, p_exclude: [...skip, ...(UUID.test(notId || '') ? [notId] : [])].filter(id => UUID.test(id)) }),
       timeout(3000)
     ]);
-    return r && !r.error && r.data ? r.data : local();
+    return r && !r.error && r.data && !skip.includes(r.data.id) ? r.data : local();
   } catch { return local() }
 }
 let busy = false;
@@ -250,7 +260,7 @@ const reduceMotion = matchMedia('(prefers-reduced-motion: reduce)');
 const canTransition = () => !!document.startViewTransition && !reduceMotion.matches;
 if (canTransition()) document.documentElement.classList.add('vt');
 reduceMotion.addEventListener?.('change', () => document.documentElement.classList.toggle('vt', canTransition()));
-const ORDER = { intro: -1, welcome: 0, exercise: 1, affirmation: 2, message: 3 };
+const ORDER = { intro: -1, welcome: 0, focus: 0.5, exercise: 1, affirmation: 2, message: 3 };
 function swap(update, from, to) {
   if (!canTransition() || !$('#main').children.length || document.hidden) return update();
   document.documentElement.dataset.dir = from === to ? 'same' : from === 'message' && to === 'welcome' ? 'same' : ORDER[to] < ORDER[from] ? 'back' : 'fwd';
@@ -279,11 +289,13 @@ document.addEventListener('click', e => {
   if (a === 'intro-done') { store.set('introSeen', true); return go('welcome') }
   if (a === 'remind') return openSettings('remind');
   if (a === 'need') startCategory(b.dataset.c);
+  if (a === 'focus') chooseFocus(b.dataset.f);
+  if (a === 'back' && k === 'focus') return go('welcome');
   if (a === 'up' || a === 'down') return vote(k, it, a === 'up' ? 1 : -1);
   if (a === 'refresh') { log('refresh', it, k); go(k, true) }
   if (a === 'next') { log('next', it, 'exercise'); go('affirmation', true) }
   if (a === 'back' && k === 'affirmation') { log('back', it, 'affirmation'); go('exercise', false) }
-  if (a === 'back' && k === 'exercise') { log('back', it, 'exercise'); go('welcome') }
+  if (a === 'back' && k === 'exercise') { log('back', it, 'exercise'); go(focusOptions(S.cat).length ? 'focus' : 'welcome') }
   if (a === 'done') {
     store.set('completions', store.get('completions', 0) + 1); S.doneSinceProfile = (S.doneSinceProfile || 0) + 1;
     S.showTip = tipCardDue();
@@ -310,11 +322,21 @@ function remindPromptDue() {
 // Start a session in a category (welcome buttons, widgets, shortcuts). Mindful minutes count from here.
 function startCategory(cat) {
   if (!NEEDS.some(n => n[0] === cat)) return;
-  S.cat = cat; S.ex = S.af = null; S.startedAt = Date.now();
+  S.cat = cat; S.focus = null; S.ex = S.af = null; S.startedAt = Date.now();
   if ($('#settings').open) $('#settings').close();
   if ($('#help').open) $('#help').close();
+  if (focusOptions(cat).length) return go('focus'); // e.g. sleep: "How can your sleep be improved?"
   go('exercise', true);
 }
+// A follow-up question that narrows a category (exercises.focus). Copy lives in app_copy as
+// <cat>_focus_question and <cat>_focus_options ("key|Label" per line; key "any" = no narrowing).
+const focusOptions = cat => (data?.copy?.[cat + '_focus_options'] || '').split('\n').filter(l => l.includes('|')).map(l => l.split('|'));
+function chooseFocus(f) {
+  S.focus = f === 'any' ? null : f; S.ex = S.af = null; S.startedAt = Date.now();
+  go('exercise', true);
+}
+// Exercises that fit the chosen focus (an exercise with no focus fits every one).
+const inFocus = list => !S.focus ? list : list.filter(x => !x.focus || x.focus.includes(S.focus));
 
 // ---- Settings: theme (stored as prefs.palette) + font
 const P = [['hearth', 'Hearth', '#d8c6b2', '#6f4a33'], ['moss', 'Moss', '#cfd6c8', '#4f6b50'], ['tide', 'Tide', '#cdd8de', '#3f6477'], ['pine', 'Pine', '#1f2a27', '#8fb8a3'], ['dusk', 'Dusk', '#2b2830', '#b9a7c9']];
@@ -797,7 +819,7 @@ onAppPause(flush);
 async function loadContent() {
   // Content is public, so it loads whether or not the device has signed in.
   const [x, a, m, g, c, r, tp, cp] = await Promise.all([
-    sb.from('exercises').select('id,title,kind,body,category,research_summary,sources,audio_url').eq('is_active', true),
+    sb.from('exercises').select('id,title,kind,body,category,focus,research_summary,sources,audio_url').eq('is_active', true),
     sb.from('affirmations').select('id,body_html,category').eq('is_active', true),
     sb.from('completion_messages').select('id,body,category').eq('is_active', true),
     sb.from('greetings').select('id,body,contexts').eq('is_active', true),

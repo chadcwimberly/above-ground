@@ -1,4 +1,4 @@
-const C = 'ground-v3';
+const C = 'ground-2.0.0-local';
 const SHELL = ['./', 'index.html', 'manifest.webmanifest', 'favicon.ico', 'favicon-32.png', 'icon-192.png'];
 
 self.addEventListener('install', e => {

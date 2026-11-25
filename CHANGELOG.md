@@ -4,7 +4,15 @@ All notable changes to Above Ground. Versions follow [Semantic Versioning](https
 MAJOR for changes that break saved data or flows, MINOR for new features, PATCH for fixes.
 The exact time each version went live is shown in the app under Settings → Last Updated.
 
-## 1.10.0 — 2026-11-24
+## 2.0.0 — 2026-11-25
+A major release: sleep exercises, plus everything first planned as 1.10.0.
+- After "I'm getting ready for sleep", a second question: "How can your sleep be improved?" with Physically
+  restless, Mentally restless, Not tired, or I'll try anything. The answer narrows which sleep exercises are shown
+  (body: breathing, muscle relaxation, body scan; mind: imagery, lists, letting go of trying; not tired: winding
+  down in dim light, getting up until sleepy). Back from a sleep exercise returns to the question. The question and
+  its choices live in `app_copy` (`sleep_focus_question`, `sleep_focus_options`); which exercises fit each choice is
+  `exercises.focus` (migration `20261125100840_exercise_focus`). A 12th sleep exercise, "Dim the lights and do
+  something calm", for when you're not tired yet.
 - Sleep exercises: a fourth choice on the home screen, "I'm getting ready for sleep", for winding down right before
   bed or in bed. 11 research-based exercises (slow breathing, counting breaths, head-to-toe muscle relaxation, a body
   scan, a calm place, picturing random things, tomorrow's to-do list, a worry's next step, three good things,
